@@ -1,3 +1,5 @@
+"use client";
+
 import { ReactNode } from "react";
 import { AuthLogo } from "./AuthLogo";
 
@@ -73,7 +75,7 @@ export function AuthLayout({ left, right, leftWidth = 420 }: AuthLayoutProps) {
             whiteSpace: "nowrap",
           }}
         >
-          Система управління енергоресурсами · v1.0
+          Система управління енергоресурсами 
         </div>
       </div>
 
