@@ -74,7 +74,7 @@ export function RegisterForm() {
         {/* Name */}
         <div>
           <label style={{ display: "block", color: "#94a3b8", fontSize: "13px", marginBottom: "8px", fontWeight: 500 }}>
-            Повне ім'я
+            Повне ім&apos;я
           </label>
           <div style={{ position: "relative" }}>
             <div style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#475569", pointerEvents: "none" }}>

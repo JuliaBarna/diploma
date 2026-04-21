@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ErrorBanner } from "./ErrorBanner";
 import { PasswordInput } from "./PasswordInput";
 import { SocialButton } from "./SocialButton";
 
 export function LoginForm() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -36,7 +34,8 @@ export function LoginForm() {
         return;
       }
 
-      router.push("/dashboard");
+      // Hard navigation — щоб cookie точно була встановлена до наступного запиту
+      window.location.href = "/dashboard";
     } catch {
       setError("Помилка з'єднання з сервером");
       setLoading(false);
@@ -102,11 +101,7 @@ export function LoginForm() {
               Забули пароль?
             </Link>
           </div>
-          <PasswordInput
-            value={password}
-            onChange={setPassword}
-            required
-          />
+          <PasswordInput value={password} onChange={setPassword} required />
         </div>
 
         {/* Remember me */}
@@ -135,7 +130,7 @@ export function LoginForm() {
               </svg>
             )}
           </div>
-          <span style={{ color: "#64748b", fontSize: "13px" }}>Запам'ятати мене на 30 днів</span>
+          <span style={{ color: "#64748b", fontSize: "13px" }}>Запам&apos;ятати мене на 30 днів</span>
         </label>
 
         {/* Submit */}
