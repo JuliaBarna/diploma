@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jwtVerify } from "jose";
+import { getToken } from "next-auth/jwt";
 
-// Шляхи доступні без авторизації
 const PUBLIC_PATHS = new Set(["/login", "/register", "/forgot-password"]);
 
-// Шляхи що не потребують перевірки взагалі (статика, API auth)
 function isSkipped(pathname: string): boolean {
   return (
     pathname.startsWith("/_next/") ||
@@ -13,50 +11,36 @@ function isSkipped(pathname: string): boolean {
   );
 }
 
-async function verifyToken(token: string): Promise<boolean> {
-  try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
-    await jwtVerify(token, secret);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Пропускаємо статику та auth API без будь-яких перевірок
   if (isSkipped(pathname)) {
     return NextResponse.next();
   }
 
-  const token = req.cookies.get("token")?.value;
+  const token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET!,
+  });
 
-  // Публічна сторінка (login / register)
   if (PUBLIC_PATHS.has(pathname)) {
-    // Якщо вже залогінений — редірект на dashboard
-    if (token && (await verifyToken(token))) {
+    if (token) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
     return NextResponse.next();
   }
 
-  // Захищений роут — перевіряємо токен
-  if (!token || !(await verifyToken(token))) {
+  if (!token) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("from", pathname);
-    const response = NextResponse.redirect(loginUrl);
-    // Видаляємо протухлу cookie якщо була
-    if (token) response.cookies.delete("token");
-    return response;
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
 }
 
+export default proxy;
+
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
