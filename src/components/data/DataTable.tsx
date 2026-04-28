@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { AddRecordModal } from "./AddRecordModal"
 import { ImportModal } from "./ImportModal"
 
 interface EnergyRecord {
@@ -20,8 +19,7 @@ export function DataTable() {
   const [search, setSearch] = useState("")
   const [sortField, setSortField] = useState<keyof EnergyRecord>("recordedAt")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showImportModal, setShowImportModal] = useState(false)
+const [showImportModal, setShowImportModal] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
 
@@ -122,21 +120,6 @@ export function DataTable() {
           Імпорт
         </button>
 
-        {/* Add */}
-        <button
-          onClick={() => setShowAddModal(true)}
-          style={{
-            display: "flex", alignItems: "center", gap: "7px",
-            background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
-            border: "none", borderRadius: "8px", padding: "9px 14px",
-            color: "white", fontSize: "13px", cursor: "pointer", fontWeight: 500,
-          }}
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Додати запис
-        </button>
       </div>
 
       {/* Table */}
@@ -233,13 +216,7 @@ export function DataTable() {
         )}
       </div>
 
-      {showAddModal && (
-        <AddRecordModal
-          onClose={() => setShowAddModal(false)}
-          onSaved={() => { setShowAddModal(false); triggerRefetch() }}
-        />
-      )}
-      {showImportModal && (
+{showImportModal && (
         <ImportModal
           onClose={() => setShowImportModal(false)}
           onImported={() => { setShowImportModal(false); triggerRefetch() }}

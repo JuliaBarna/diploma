@@ -3,7 +3,7 @@ import { Header } from "@/components/layout/Header";
 export default function DashboardPage() {
   return (
     <>
-      <Header title="Огляд" subtitle="Система управління енергоресурсами" />
+      <Header title="Моніторинг" subtitle="Система управління енергоресурсами" />
 
       <main style={{ flex: 1, padding: "28px" }}>
         {/* Placeholder — буде замінено в четвер */}
