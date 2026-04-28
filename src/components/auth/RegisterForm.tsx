@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ErrorBanner } from "./ErrorBanner";
 import { PasswordInput } from "./PasswordInput";
+import { SocialButton } from "./SocialButton";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -58,7 +59,6 @@ export function RegisterForm() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-      {/* Heading */}
       <div style={{ marginBottom: "28px" }}>
         <h1 style={{ color: "#f1f5f9", fontSize: "26px", fontWeight: 700, margin: 0, letterSpacing: "-0.5px" }}>
           Створити акаунт
@@ -222,6 +222,16 @@ export function RegisterForm() {
           )}
         </button>
       </form>
+
+      {/* Divider */}
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "20px 0" }}>
+        <div style={{ flex: 1, height: "1px", background: "#1e2535" }} />
+        <span style={{ color: "#475569", fontSize: "12px" }}>або</span>
+        <div style={{ flex: 1, height: "1px", background: "#1e2535" }} />
+      </div>
+
+      {/* Google */}
+      <SocialButton />
 
       {/* Footer */}
       <div style={{ marginTop: "auto", paddingTop: "28px", textAlign: "center" }}>

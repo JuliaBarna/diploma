@@ -17,6 +17,7 @@ export function AuthLayout({ left, right, leftWidth = 420 }: AuthLayoutProps) {
     <div style={{ display: "flex", minHeight: "100vh", background: "#0b0e14" }}>
       {/* ─── Left Panel ─────────────────────────────────────────── */}
       <div
+        className="auth-left-panel"
         style={{
           width: `${leftWidth}px`,
           minWidth: `${leftWidth}px`,
@@ -37,6 +38,7 @@ export function AuthLayout({ left, right, leftWidth = 420 }: AuthLayoutProps) {
 
       {/* ─── Right Panel ────────────────────────────────────────── */}
       <div
+        className="auth-right-panel"
         style={{
           flex: 1,
           background: "#0b0e14",
