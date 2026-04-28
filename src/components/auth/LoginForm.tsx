@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { ErrorBanner } from "./ErrorBanner";
 import { PasswordInput } from "./PasswordInput";
 import { SocialButton } from "./SocialButton";
 
 export function LoginForm() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -19,27 +22,20 @@ export function LoginForm() {
     setError("");
     setLoading(true);
 
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+    const result = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || "Невірний email або пароль");
-        setLoading(false);
-        return;
-      }
-
-      // Hard navigation — щоб cookie точно була встановлена до наступного запиту
-      window.location.href = "/dashboard";
-    } catch {
-      setError("Помилка з'єднання з сервером");
+    if (result?.error) {
+      setError("Невірний email або пароль");
       setLoading(false);
+      return;
     }
+
+    const from = searchParams.get("from") || "/dashboard";
+    window.location.href = from;
   }
 
   return (
