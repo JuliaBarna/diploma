@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { hashPassword, createToken } from "@/lib/auth"
+import { hashPassword } from "@/lib/auth"
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,29 +23,14 @@ export async function POST(req: NextRequest) {
 
     const hashedPassword = await hashPassword(password)
 
-    const user = await prisma.user.create({
+    await prisma.user.create({
       data: { name, email, password: hashedPassword, organization },
     })
 
-    const token = await createToken({
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    })
-
-    const response = NextResponse.json(
+    return NextResponse.json(
       { message: "Реєстрація успішна" },
       { status: 201 }
     )
-
-    response.cookies.set("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-    })
-
-    return response
   } catch (error) {
     return NextResponse.json(
       { error: "Помилка сервера" },
