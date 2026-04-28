@@ -25,3 +25,35 @@ body {
   background-color: var(--background);
   color: var(--foreground);
 }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── Responsive utilities ──────────────────────────── */
+@media (min-width: 1024px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  .page-main {
+    padding: 16px !important;
+  }
+
+  .auth-right-panel {
+    display: none !important;
+  }
+
+  .auth-left-panel {
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 32px 24px !important;
+  }
+}
