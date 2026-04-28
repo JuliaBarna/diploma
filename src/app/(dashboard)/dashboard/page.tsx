@@ -5,7 +5,7 @@ export default function DashboardPage() {
     <>
       <Header title="Моніторинг" subtitle="Система управління енергоресурсами" />
 
-      <main style={{ flex: 1, padding: "28px" }}>
+      <main className="page-main" style={{ flex: 1, padding: "28px" }}>
         {/* Placeholder — буде замінено в четвер */}
         <div
           style={{
