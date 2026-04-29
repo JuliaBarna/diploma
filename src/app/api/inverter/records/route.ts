@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { generateDayRecords } from "@/lib/inverter-mock"
 import { prisma } from "@/lib/prisma"
 
 export const dynamic = "force-dynamic"
@@ -13,28 +12,18 @@ export async function GET(req: NextRequest) {
   const dayEnd = new Date(date)
   dayEnd.setUTCHours(23, 59, 59, 999)
 
-  const dbRecords = await prisma.inverterRecord.findMany({
+  const records = await prisma.inverterRecord.findMany({
     where: { timestamp: { gte: dayStart, lte: dayEnd } },
     orderBy: { timestamp: "asc" },
+    select: {
+      statisticalPeriod: true,
+      pvYield:           true,
+      inverterYield:     true,
+      export:            true,
+      import:            true,
+      revenue:           true,
+    },
   })
 
-  if (dbRecords.length > 0) {
-    return NextResponse.json(dbRecords.map((r) => ({
-      statisticalPeriod: r.statisticalPeriod,
-      globalIrradiation: r.globalIrradiation,
-      avgTemperature:    r.avgTemperature,
-      theoreticalYield:  r.theoreticalYield,
-      pvYield:           r.pvYield,
-      inverterYield:     r.inverterYield,
-      export:            r.export,
-      import:            r.import,
-      lossExportKwh:     r.lossExportKwh,
-      lossExportEur:     r.lossExportEur,
-      charge:            r.charge,
-      discharge:         r.discharge,
-      revenue:           r.revenue,
-    })))
-  }
-
-  return NextResponse.json(generateDayRecords(date))
+  return NextResponse.json(records)
 }
