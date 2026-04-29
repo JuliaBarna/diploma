@@ -1,12 +1,12 @@
 import { Header } from "@/components/layout/Header"
-import { DataTable } from "@/components/data/DataTable"
+import { InverterTable } from "@/components/data/InverterTable"
 
 export default function DataPage() {
   return (
     <>
-      <Header title="Таблиця даних" subtitle="Управління записами споживання електроенергії" />
+      <Header title="Дані інвертора" subtitle="Погодинна статистика PV-системи" />
       <main className="page-main" style={{ flex: 1, padding: "28px" }}>
-        <DataTable />
+        <InverterTable />
       </main>
     </>
   )
