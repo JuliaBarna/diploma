@@ -22,12 +22,23 @@ const C = {
   yellow: "#eab308",
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
+  return isMobile
+}
+
 // ── KPI Card ────────────────────────────────────────────────────────────────
 function KpiCard({ label, value, unit, icon }: { label: string; value: string; unit: string; icon: React.ReactNode }) {
   return (
     <div style={{
       background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px",
-      padding: "20px 24px", flex: 1, minWidth: 0,
+      padding: "20px 24px", flex: 1, minWidth: "140px",
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
@@ -45,23 +56,21 @@ function KpiCard({ label, value, unit, icon }: { label: string; value: string; u
 }
 
 // ── Alerts Bar ───────────────────────────────────────────────────────────────
-function AlertsBar() {
+function AlertsBar({ isMobile }: { isMobile: boolean }) {
   const items = [
     { label: "Critical", count: 0, color: "#ef4444" },
-    { label: "Major", count: 0, color: "#f97316" },
-    { label: "Minor", count: 0, color: "#eab308" },
-    { label: "Warning", count: 0, color: "#3b82f6" },
+    { label: "Major",    count: 0, color: "#f97316" },
+    { label: "Minor",    count: 0, color: "#eab308" },
+    { label: "Warning",  count: 0, color: "#3b82f6" },
   ]
   return (
     <div style={{
-      display: "flex", gap: "12px", background: C.card,
-      border: `1px solid ${C.border}`, borderRadius: "12px", padding: "14px 20px",
+      display: "flex", flexWrap: isMobile ? "wrap" : "nowrap", gap: "12px",
+      background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "14px 20px",
     }}>
       {items.map(({ label, count, color }) => (
-        <div key={label} style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
-          <div style={{
-            width: "8px", height: "8px", borderRadius: "50%", background: color, flexShrink: 0,
-          }} />
+        <div key={label} style={{ display: "flex", alignItems: "center", gap: "8px", flex: isMobile ? "1 1 40%" : 1 }}>
+          <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: color, flexShrink: 0 }} />
           <span style={{ fontSize: "13px", color: C.muted }}>{label}</span>
           <span style={{ fontSize: "20px", fontWeight: 700, color: C.text, marginLeft: "auto" }}>{count}</span>
         </div>
@@ -78,9 +87,8 @@ function PowerFlow({ pv, load, grid }: { pv: number; load: number; grid: number 
   return (
     <div style={{
       background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px",
-      padding: "24px", display: "flex", flexDirection: "column", alignItems: "center", gap: "0",
+      padding: "24px", display: "flex", flexDirection: "column", alignItems: "center",
     }}>
-      {/* Load node */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
         <div style={{
           background: "#1e2535", border: `1px solid ${C.border}`, borderRadius: "10px",
@@ -93,17 +101,14 @@ function PowerFlow({ pv, load, grid }: { pv: number; load: number; grid: number 
           <div style={{ fontSize: "18px", fontWeight: 700, color: C.text }}>{load.toFixed(1)} kW</div>
           <div style={{ fontSize: "11px", color: C.dim, marginTop: "2px" }}>Споживання</div>
         </div>
-        {/* Vertical arrow down */}
         <svg width="2" height="32" viewBox="0 0 2 32">
           <line x1="1" y1="0" x2="1" y2="28" stroke={C.green} strokeWidth="2" strokeDasharray="4 2" />
           <polygon points="1,32 -3,24 5,24" fill={C.green} />
         </svg>
       </div>
 
-      {/* Middle row: Grid ── center ── PV */}
-      <div style={{ display: "flex", alignItems: "center", gap: "0", width: "100%" }}>
-        {/* Grid node */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+      <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+        <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
           <div style={{
             background: "#1e2535", border: `1px solid ${C.border}`, borderRadius: "10px",
             padding: "12px 16px", textAlign: "center",
@@ -120,7 +125,6 @@ function PowerFlow({ pv, load, grid }: { pv: number; load: number; grid: number 
           </div>
         </div>
 
-        {/* Horizontal arrows */}
         <div style={{ flex: 2, position: "relative", height: "2px" }}>
           <svg width="100%" height="20" style={{ overflow: "visible" }} viewBox="0 0 200 20">
             {isExporting ? (
@@ -141,8 +145,7 @@ function PowerFlow({ pv, load, grid }: { pv: number; load: number; grid: number 
           </svg>
         </div>
 
-        {/* PV node */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
+        <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
           <div style={{
             background: "#1e2535", border: `1px solid ${C.border}`, borderRadius: "10px",
             padding: "12px 16px", textAlign: "center",
@@ -176,7 +179,6 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
   )
 }
 
-// ── Tooltip styles ────────────────────────────────────────────────────────────
 const tooltipStyle = {
   contentStyle: { background: "#1e2535", border: `1px solid ${C.border}`, borderRadius: "8px", fontSize: "12px" },
   labelStyle: { color: C.muted },
@@ -187,7 +189,7 @@ const tooltipStyle = {
 export function MonitoringDashboard() {
   const [stats, setStats] = useState<LiveStats | null>(null)
   const [energyTab, setEnergyTab] = useState<"day" | "month">("day")
-  const [revenueTab, setRevenueTab] = useState<"month">("month")
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     let cancelled = false
@@ -221,8 +223,8 @@ export function MonitoringDashboard() {
       {/* KPI row */}
       <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
         <KpiCard label="Вироблено сьогодні" value={stats.yieldToday.toFixed(2)} unit="кВт·год" icon={
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill={C.blue} stroke="none" />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill={C.blue} />
           </svg>
         } />
         <KpiCard label="Отримано з мережі сьогодні" value={stats.supplyFromGrid.toFixed(2)} unit="кВт·год" icon={
@@ -235,7 +237,7 @@ export function MonitoringDashboard() {
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         } />
-        <KpiCard label="Дохід сьогодні" value={stats.revenueToday.toFixed(2)} unit="€" icon={
+        <KpiCard label="Дохід сьогодні" value={stats.revenueToday.toFixed(2)} unit="₪" icon={
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2">
             <line x1="12" y1="1" x2="12" y2="23" strokeLinecap="round" />
             <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" strokeLinecap="round" />
@@ -244,13 +246,16 @@ export function MonitoringDashboard() {
       </div>
 
       {/* Alerts */}
-      <AlertsBar />
+      <AlertsBar isMobile={isMobile} />
 
       {/* Power flow + Energy chart */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.8fr", gap: "16px" }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "1fr 1.8fr",
+        gap: "16px",
+      }}>
         <PowerFlow pv={stats.pvPower} load={stats.loadPower} grid={stats.gridPower} />
 
-        {/* Energy Trend */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
             <span style={{ fontSize: "14px", fontWeight: 600, color: C.text }}>Energy Trend</span>
@@ -264,7 +269,7 @@ export function MonitoringDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e2535" />
               <XAxis dataKey="time" tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={{ stroke: C.border }} label={{ value: xLabel, position: "insideBottomRight", offset: -4, fill: C.dim, fontSize: 11 }} />
               <YAxis tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={false} unit=" kWh" />
-              <Tooltip {...tooltipStyle} formatter={(v: number) => [`${v.toFixed(1)} kWh`]} />
+              <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(1)} kWh`]} />
               <Legend wrapperStyle={{ fontSize: "12px", color: C.muted, paddingTop: "8px" }} />
               <Line type="monotone" dataKey="pvOutput" name="PV output" stroke={C.green} dot={false} strokeWidth={2} />
               <Line type="monotone" dataKey="gridPower" name="Power from grid" stroke={C.muted} dot={false} strokeWidth={1.5} />
@@ -275,8 +280,11 @@ export function MonitoringDashboard() {
       </div>
 
       {/* Revenue chart + Environmental benefits */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.8fr 1fr", gap: "16px" }}>
-        {/* Revenue Trend */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "1.8fr 1fr",
+        gap: "16px",
+      }}>
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
             <span style={{ fontSize: "14px", fontWeight: 600, color: C.text }}>Revenue Trend</span>
@@ -286,15 +294,15 @@ export function MonitoringDashboard() {
           </div>
           <div style={{ fontSize: "13px", color: C.muted, marginBottom: "12px" }}>
             Total revenue <span style={{ fontWeight: 700, color: C.text }}>
-              {stats.revenueChartData.reduce((s, r) => s + r.revenue, 0).toFixed(2)} €
+              {stats.revenueChartData.reduce((s, r) => s + r.revenue, 0).toFixed(2)} ₪
             </span>
           </div>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={stats.revenueChartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e2535" vertical={false} />
               <XAxis dataKey="day" tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={{ stroke: C.border }} />
-              <YAxis tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={false} unit=" €" />
-              <Tooltip {...tooltipStyle} formatter={(v: number) => [`${v.toFixed(2)} €`]} />
+              <YAxis tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={false} unit=" ₪" />
+              <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(2)} ₪`]} />
               <Bar dataKey="revenue" name="Revenue" fill={C.purple} radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
