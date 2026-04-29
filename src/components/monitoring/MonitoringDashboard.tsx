@@ -187,7 +187,6 @@ const tooltipStyle = {
 export function MonitoringDashboard() {
   const [stats, setStats] = useState<LiveStats | null>(null)
   const [energyTab, setEnergyTab] = useState<"day" | "month">("day")
-  const [revenueTab, setRevenueTab] = useState<"month">("month")
 
   useEffect(() => {
     let cancelled = false
@@ -264,7 +263,7 @@ export function MonitoringDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e2535" />
               <XAxis dataKey="time" tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={{ stroke: C.border }} label={{ value: xLabel, position: "insideBottomRight", offset: -4, fill: C.dim, fontSize: 11 }} />
               <YAxis tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={false} unit=" kWh" />
-              <Tooltip {...tooltipStyle} formatter={(v: number) => [`${v.toFixed(1)} kWh`]} />
+              <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(1)} kWh`]} />
               <Legend wrapperStyle={{ fontSize: "12px", color: C.muted, paddingTop: "8px" }} />
               <Line type="monotone" dataKey="pvOutput" name="PV output" stroke={C.green} dot={false} strokeWidth={2} />
               <Line type="monotone" dataKey="gridPower" name="Power from grid" stroke={C.muted} dot={false} strokeWidth={1.5} />
@@ -294,7 +293,7 @@ export function MonitoringDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e2535" vertical={false} />
               <XAxis dataKey="day" tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={{ stroke: C.border }} />
               <YAxis tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={false} unit=" €" />
-              <Tooltip {...tooltipStyle} formatter={(v: number) => [`${v.toFixed(2)} €`]} />
+              <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(2)} €`]} />
               <Bar dataKey="revenue" name="Revenue" fill={C.purple} radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
