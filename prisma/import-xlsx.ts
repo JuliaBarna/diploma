@@ -3,17 +3,34 @@
  * Usage: npx tsx prisma/import-xlsx.ts <path-to-file-or-folder>
  *
  * File name must be a date: 14-04-2026.xlsx
- * Each file has 24 rows (one per hour), columns as exported by FusionSolar.
+ * Row 0 in parsed output = header labels (skipped).
+ * Rows 1-24 = hourly data with __EMPTY_N keys.
+ * Statistical period format: "2026-04-01 13:00:00 DST"
+ * Numbers use European format: comma as decimal, space as thousands.
  */
 
 import * as XLSX from "xlsx"
 import * as path from "path"
 import * as fs from "fs"
+import { config } from "dotenv"
 import { PrismaClient } from "@prisma/client"
+import { PrismaNeon } from "@prisma/adapter-neon"
+import { neonConfig } from "@neondatabase/serverless"
+import ws from "ws"
 
-const prisma = new PrismaClient()
+// Load .env before anything uses DATABASE_URL
+config({ path: path.resolve(process.cwd(), ".env") })
 
-function parseEU(val: unknown): number {
+neonConfig.webSocketConstructor = ws
+
+function getPrisma() {
+  const url = process.env.DATABASE_URL
+  if (!url) throw new Error("DATABASE_URL is not set in .env")
+  const adapter = new PrismaNeon({ connectionString: url })
+  return new PrismaClient({ adapter })
+}
+
+function parseNum(val: unknown): number {
   if (val === null || val === undefined || val === "") return 0
   const s = String(val).replace(/\s/g, "").replace(",", ".")
   const n = parseFloat(s)
@@ -21,20 +38,25 @@ function parseEU(val: unknown): number {
 }
 
 function parseDateFromFilename(filename: string): Date | null {
-  // expects DD-MM-YYYY.xlsx
   const m = path.basename(filename).match(/^(\d{2})-(\d{2})-(\d{4})\.xlsx$/i)
   if (!m) return null
   const [, dd, mm, yyyy] = m
   return new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`)
 }
 
-function parseTimeToHour(period: string): number {
-  // "10:00" → 10
-  const m = String(period).match(/^(\d{1,2})/)
+function parseHourFromPeriod(period: string): number {
+  // "2026-04-01 13:00:00 DST" → 13
+  const m = String(period).match(/\s(\d{2}):\d{2}:\d{2}/)
   return m ? parseInt(m[1], 10) : 0
 }
 
-async function importFile(filePath: string) {
+function formatPeriod(period: string): string {
+  // "2026-04-01 13:00:00 DST" → "13:00"
+  const m = String(period).match(/\s(\d{2}:\d{2}):\d{2}/)
+  return m ? m[1] : period
+}
+
+async function importFile(prisma: PrismaClient, filePath: string) {
   const fileDate = parseDateFromFilename(filePath)
   if (!fileDate) {
     console.error(`Skipping ${filePath}: filename must be DD-MM-YYYY.xlsx`)
@@ -45,34 +67,40 @@ async function importFile(filePath: string) {
   const ws = wb.Sheets[wb.SheetNames[0]]
   const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(ws, { defval: "" })
 
-  let inserted = 0
-  for (const row of rows) {
-    const period = String(row["Statistical period"] ?? row["Статистичний період"] ?? "")
-    if (!period) continue
+  // Row 0 is the header row — skip it
+  const dataRows = rows.slice(1)
 
-    const hour = parseTimeToHour(period)
+  let inserted = 0
+  for (const row of dataRows) {
+    const rawPeriod = String(row["__EMPTY"] ?? "")
+    if (!rawPeriod) continue
+
+    const hour = parseHourFromPeriod(rawPeriod)
+    const period = formatPeriod(rawPeriod)
+
     const timestamp = new Date(fileDate)
     timestamp.setUTCHours(hour, 0, 0, 0)
 
+    const data = {
+      statisticalPeriod: period,
+      globalIrradiation: parseNum(row["__EMPTY_1"]),
+      avgTemperature:    parseNum(row["__EMPTY_2"]),
+      theoreticalYield:  parseNum(row["__EMPTY_3"]),
+      pvYield:           parseNum(row["__EMPTY_4"]),
+      inverterYield:     parseNum(row["__EMPTY_5"]),
+      export:            parseNum(row["__EMPTY_6"]),
+      import:            parseNum(row["__EMPTY_7"]),
+      lossExportKwh:     parseNum(row["__EMPTY_8"]),
+      lossExportEur:     parseNum(row["__EMPTY_9"]),
+      charge:            parseNum(row["__EMPTY_10"]),
+      discharge:         parseNum(row["__EMPTY_11"]),
+      revenue:           parseNum(row["__EMPTY_12"]),
+    }
+
     await prisma.inverterRecord.upsert({
       where: { timestamp },
-      update: {},
-      create: {
-        timestamp,
-        statisticalPeriod: period,
-        globalIrradiation: parseEU(row["Global irradiation"] ?? row["Глобальне опромінення"]),
-        avgTemperature:    parseEU(row["Average temperature"] ?? row["Сер. температура"]),
-        theoreticalYield:  parseEU(row["Theoretical yield"] ?? row["Теоретичне вироблення"]),
-        pvYield:           parseEU(row["PV yield"] ?? row["Вироблення PV"]),
-        inverterYield:     parseEU(row["Inverter yield"] ?? row["Вироблення інвертора"]),
-        export:            parseEU(row["Export"] ?? row["Експорт"]),
-        import:            parseEU(row["Import"] ?? row["Імпорт"]),
-        lossExportKwh:     parseEU(row["Export power limitation loss(kwh)"] ?? row["Втрати експорту"]),
-        lossExportEur:     parseEU(row["Export power limitation loss(EUR)"] ?? row["Втрати €"]),
-        charge:            parseEU(row["Charge"] ?? row["Заряд"]),
-        discharge:         parseEU(row["Discharge"] ?? row["Розряд"]),
-        revenue:           parseEU(row["Revenue"] ?? row["Дохід"]),
-      },
+      update: data,
+      create: { timestamp, ...data },
     })
     inserted++
   }
@@ -87,12 +115,16 @@ async function main() {
     process.exit(1)
   }
 
+  const prisma = getPrisma()
+
   const stat = fs.statSync(target)
   if (stat.isDirectory()) {
-    const files = fs.readdirSync(target).filter((f) => f.endsWith(".xlsx"))
-    for (const f of files) await importFile(path.join(target, f))
+    const files = fs.readdirSync(target)
+      .filter((f) => /^\d{2}-\d{2}-\d{4}\.xlsx$/i.test(f))
+      .sort()
+    for (const f of files) await importFile(prisma, path.join(target, f))
   } else {
-    await importFile(target)
+    await importFile(prisma, target)
   }
 
   await prisma.$disconnect()
