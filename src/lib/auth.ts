@@ -1,8 +1,24 @@
-import { NextAuthOptions } from "next-auth"
+import { NextAuthOptions, DefaultSession } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+
+declare module "next-auth" {
+  interface Session {
+    user: { id: string; role: string } & DefaultSession["user"]
+  }
+  interface User {
+    role?: string
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id?: string
+    role?: string
+  }
+}
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -46,13 +62,13 @@ export const authOptions: NextAuthOptions = {
         const dbUser = await prisma.user.upsert({
           where: { email: token.email },
           update: {
-            name: token.name,
-            image: token.picture as string,
+            name: token.name ?? undefined,
+            image: (token.picture as string) ?? undefined,
           },
           create: {
             email: token.email,
-            name: token.name,
-            image: token.picture as string,
+            name: token.name ?? undefined,
+            image: (token.picture as string) ?? undefined,
           },
         })
         token.id = dbUser.id
@@ -61,11 +77,14 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string
-        session.user.role = token.role as string
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          id: token.id as string,
+          role: (token.role as string) ?? "user",
+        },
       }
-      return session
     },
   },
   pages: {
