@@ -81,3 +81,24 @@ model Scenario {
   savings     Float?
   createdAt   DateTime @default(now())
 }
+
+model InverterRecord {
+  id                String   @id @default(cuid())
+  timestamp         DateTime // година доби: 2026-04-14T10:00:00Z
+  statisticalPeriod String   // "10:00"
+  globalIrradiation Float    // кВт·год/м²
+  avgTemperature    Float    // °C
+  theoreticalYield  Float    // кВт·год
+  pvYield           Float    // кВт·год
+  inverterYield     Float    // кВт·год
+  export            Float    // кВт·год
+  import            Float    // кВт·год
+  lossExportKwh     Float    // кВт·год
+  lossExportEur     Float    // €
+  charge            Float    // кВт·год
+  discharge         Float    // кВт·год
+  revenue           Float    // €
+
+  @@unique([timestamp])
+  @@index([timestamp])
+}
