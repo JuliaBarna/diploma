@@ -22,11 +22,7 @@ export function LoginForm() {
     setError("");
     setLoading(true);
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    const result = await signIn("credentials", { email, password, redirect: false });
 
     if (result?.error) {
       setError("Невірний email або пароль");
@@ -40,12 +36,11 @@ export function LoginForm() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-      {/* Heading */}
       <div style={{ marginBottom: "32px" }}>
-        <h1 style={{ color: "#f1f5f9", fontSize: "26px", fontWeight: 700, margin: 0, letterSpacing: "-0.5px" }}>
+        <h1 style={{ color: "var(--c-text)", fontSize: "26px", fontWeight: 700, margin: 0, letterSpacing: "-0.5px" }}>
           З поверненням
         </h1>
-        <p style={{ color: "#64748b", fontSize: "14px", marginTop: "8px", lineHeight: "1.5" }}>
+        <p style={{ color: "var(--c-dim)", fontSize: "14px", marginTop: "8px", lineHeight: "1.5" }}>
           Увійдіть до системи управління енергоресурсами
         </p>
       </div>
@@ -55,11 +50,11 @@ export function LoginForm() {
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         {/* Email */}
         <div>
-          <label style={{ display: "block", color: "#94a3b8", fontSize: "13px", marginBottom: "8px", fontWeight: 500 }}>
+          <label style={{ display: "block", color: "var(--c-muted)", fontSize: "13px", marginBottom: "8px", fontWeight: 500 }}>
             Email
           </label>
           <div style={{ position: "relative" }}>
-            <div style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#475569", pointerEvents: "none" }}>
+            <div style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--c-dim)", pointerEvents: "none" }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="2" y="4" width="20" height="16" rx="2" />
                 <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
@@ -75,11 +70,11 @@ export function LoginForm() {
               onBlur={() => setEmailFocused(false)}
               style={{
                 width: "100%",
-                background: "#0f1117",
-                border: `1px solid ${emailFocused ? "#3b82f6" : "#1e2535"}`,
+                background: "var(--c-thead)",
+                border: `1px solid ${emailFocused ? "#22c55e" : "var(--c-border)"}`,
                 borderRadius: "10px",
                 padding: "12px 14px 12px 42px",
-                color: "#f1f5f9",
+                color: "var(--c-text)",
                 fontSize: "14px",
                 outline: "none",
                 boxSizing: "border-box",
@@ -92,8 +87,8 @@ export function LoginForm() {
         {/* Password */}
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-            <label style={{ color: "#94a3b8", fontSize: "13px", fontWeight: 500 }}>Пароль</label>
-            <Link href="/forgot-password" style={{ color: "#3b82f6", fontSize: "13px", textDecoration: "none" }}>
+            <label style={{ color: "var(--c-muted)", fontSize: "13px", fontWeight: 500 }}>Пароль</label>
+            <Link href="/forgot-password" style={{ color: "#22c55e", fontSize: "13px", textDecoration: "none" }}>
               Забули пароль?
             </Link>
           </div>
@@ -107,17 +102,11 @@ export function LoginForm() {
             role="checkbox"
             aria-checked={rememberMe}
             style={{
-              width: "18px",
-              height: "18px",
-              borderRadius: "5px",
-              border: `2px solid ${rememberMe ? "#3b82f6" : "#1e2535"}`,
-              background: rememberMe ? "#3b82f6" : "transparent",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              flexShrink: 0,
-              transition: "all 0.15s",
+              width: "18px", height: "18px", borderRadius: "5px",
+              border: `2px solid ${rememberMe ? "#22c55e" : "var(--c-border)"}`,
+              background: rememberMe ? "#22c55e" : "transparent",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", flexShrink: 0, transition: "all 0.15s",
             }}
           >
             {rememberMe && (
@@ -126,7 +115,7 @@ export function LoginForm() {
               </svg>
             )}
           </div>
-          <span style={{ color: "#64748b", fontSize: "13px" }}>Запам&apos;ятати мене на 30 днів</span>
+          <span style={{ color: "var(--c-dim)", fontSize: "13px" }}>Запам&apos;ятати мене на 30 днів</span>
         </label>
 
         {/* Submit */}
@@ -134,21 +123,13 @@ export function LoginForm() {
           type="submit"
           disabled={loading}
           style={{
-            background: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
-            color: "white",
-            border: "none",
-            borderRadius: "10px",
-            padding: "13px 20px",
-            fontSize: "14px",
-            fontWeight: 600,
+            background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+            color: "white", border: "none", borderRadius: "10px",
+            padding: "13px 20px", fontSize: "14px", fontWeight: 600,
             cursor: loading ? "not-allowed" : "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "8px",
-            marginTop: "4px",
-            opacity: loading ? 0.7 : 1,
-            transition: "opacity 0.2s",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+            marginTop: "4px", opacity: loading ? 0.7 : 1, transition: "opacity 0.2s",
+            boxShadow: "0 4px 14px rgba(34,197,94,0.25)",
           }}
         >
           {loading ? (
@@ -172,18 +153,18 @@ export function LoginForm() {
 
       {/* Divider */}
       <div style={{ display: "flex", alignItems: "center", gap: "12px", margin: "20px 0" }}>
-        <div style={{ flex: 1, height: "1px", background: "#1e2535" }} />
-        <span style={{ color: "#475569", fontSize: "12px" }}>або</span>
-        <div style={{ flex: 1, height: "1px", background: "#1e2535" }} />
+        <div style={{ flex: 1, height: "1px", background: "var(--c-border)" }} />
+        <span style={{ color: "var(--c-dim)", fontSize: "12px" }}>або</span>
+        <div style={{ flex: 1, height: "1px", background: "var(--c-border)" }} />
       </div>
 
       <SocialButton />
 
       {/* Footer */}
       <div style={{ marginTop: "auto", paddingTop: "32px", textAlign: "center" }}>
-        <span style={{ color: "#475569", fontSize: "13px" }}>
+        <span style={{ color: "var(--c-dim)", fontSize: "13px" }}>
           Немає акаунту?{" "}
-          <Link href="/register" style={{ color: "#3b82f6", textDecoration: "none", fontWeight: 500 }}>
+          <Link href="/register" style={{ color: "#22c55e", textDecoration: "none", fontWeight: 500 }}>
             Зареєструватися
           </Link>
         </span>
