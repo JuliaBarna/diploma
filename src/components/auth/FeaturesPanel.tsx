@@ -1,8 +1,6 @@
 const FEATURES = [
   {
-    color: "#3b82f6",
-    bg: "rgba(59,130,246,0.1)",
-    border: "rgba(59,130,246,0.2)",
+    color: "#22c55e", bg: "rgba(34,197,94,0.1)", border: "rgba(34,197,94,0.2)",
     title: "Моніторинг в реальному часі",
     desc: "Відстежуйте споживання енергії щохвилини",
     icon: (
@@ -12,9 +10,7 @@ const FEATURES = [
     ),
   },
   {
-    color: "#10b981",
-    bg: "rgba(16,185,129,0.1)",
-    border: "rgba(16,185,129,0.2)",
+    color: "#3b82f6", bg: "rgba(59,130,246,0.1)", border: "rgba(59,130,246,0.2)",
     title: "Аналітика та прогнозування",
     desc: "ШІ-алгоритми для оптимізації витрат",
     icon: (
@@ -24,9 +20,7 @@ const FEATURES = [
     ),
   },
   {
-    color: "#a855f7",
-    bg: "rgba(168,85,247,0.1)",
-    border: "rgba(168,85,247,0.2)",
+    color: "#a855f7", bg: "rgba(168,85,247,0.1)", border: "rgba(168,85,247,0.2)",
     title: "Сценарії економії",
     desc: "Автоматичні рекомендації для зниження рахунків",
     icon: (
@@ -37,9 +31,7 @@ const FEATURES = [
     ),
   },
   {
-    color: "#f59e0b",
-    bg: "rgba(245,158,11,0.1)",
-    border: "rgba(245,158,11,0.2)",
+    color: "#f59e0b", bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.2)",
     title: "Звіти та експорт",
     desc: "Детальні звіти в форматах PDF та CSV",
     icon: (
@@ -56,78 +48,43 @@ const FEATURES = [
 export function FeaturesPanel() {
   return (
     <div style={{ width: "360px" }}>
-      {/* Radial glow */}
-      <div
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: "500px",
-          height: "500px",
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(16,185,129,0.07) 0%, transparent 70%)",
-          pointerEvents: "none",
-        }}
-      />
+      <div style={{
+        position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+        width: "500px", height: "500px", borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(34,197,94,0.07) 0%, transparent 70%)",
+        pointerEvents: "none",
+      }} />
 
-      {/* Heading */}
       <div style={{ marginBottom: "32px", position: "relative" }}>
-        <h2
-          style={{
-            color: "#f1f5f9",
-            fontSize: "22px",
-            fontWeight: 700,
-            margin: 0,
-            letterSpacing: "-0.4px",
-            lineHeight: 1.3,
-          }}
-        >
+        <h2 style={{ color: "var(--c-text)", fontSize: "22px", fontWeight: 700, margin: 0, letterSpacing: "-0.4px", lineHeight: 1.3 }}>
           Все необхідне для{" "}
-          <span style={{ color: "#10b981" }}>керування енергією</span>
+          <span style={{ color: "#22c55e" }}>керування енергією</span>
         </h2>
-        <p style={{ color: "#475569", fontSize: "13px", marginTop: "10px", lineHeight: "1.5" }}>
+        <p style={{ color: "var(--c-dim)", fontSize: "13px", marginTop: "10px", lineHeight: "1.5" }}>
           Інтелектуальна платформа для аналізу та оптимізації енергоспоживання
         </p>
       </div>
 
-      {/* Feature list */}
       <div style={{ display: "flex", flexDirection: "column", gap: "12px", position: "relative" }}>
         {FEATURES.map((f) => (
-          <div
-            key={f.title}
-            style={{
-              background: "rgba(19,22,31,0.8)",
-              backdropFilter: "blur(12px)",
-              border: "1px solid rgba(30,37,53,0.8)",
-              borderRadius: "12px",
-              padding: "16px",
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "14px",
-            }}
-          >
-            <div
-              style={{
-                width: "38px",
-                height: "38px",
-                borderRadius: "10px",
-                background: f.bg,
-                border: `1px solid ${f.border}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: f.color,
-                flexShrink: 0,
-              }}
-            >
+          <div key={f.title} style={{
+            background: "rgba(19,22,31,0.8)", backdropFilter: "blur(12px)",
+            border: "1px solid rgba(30,37,53,0.8)", borderRadius: "12px",
+            padding: "16px", display: "flex", alignItems: "flex-start", gap: "14px",
+          }}>
+            <div style={{
+              width: "38px", height: "38px", borderRadius: "10px",
+              background: f.bg, border: `1px solid ${f.border}`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: f.color, flexShrink: 0,
+            }}>
               {f.icon}
             </div>
             <div>
-              <div style={{ color: "#e2e8f0", fontSize: "13px", fontWeight: 600, marginBottom: "3px" }}>
+              <div style={{ color: "var(--c-text)", fontSize: "13px", fontWeight: 600, marginBottom: "3px" }}>
                 {f.title}
               </div>
-              <div style={{ color: "#64748b", fontSize: "12px", lineHeight: "1.5" }}>{f.desc}</div>
+              <div style={{ color: "var(--c-dim)", fontSize: "12px", lineHeight: "1.5" }}>{f.desc}</div>
             </div>
           </div>
         ))}
