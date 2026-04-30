@@ -9,14 +9,14 @@ import {
 import type { LiveStats } from "@/lib/inverter-mock"
 
 const C = {
-  bg: "#0b0e14",
-  card: "#13161f",
-  border: "#1e2535",
-  text: "#f1f5f9",
-  muted: "#94a3b8",
-  dim: "#475569",
-  blue: "#3b82f6",
-  green: "#22c55e",
+  bg:     "var(--c-bg)",
+  card:   "var(--c-card)",
+  border: "var(--c-border)",
+  text:   "var(--c-text)",
+  muted:  "var(--c-muted)",
+  dim:    "var(--c-dim)",
+  blue:   "#3b82f6",
+  green:  "#22c55e",
   orange: "#f97316",
   purple: "#a855f7",
   yellow: "#eab308",
@@ -47,7 +47,7 @@ function KpiCard({ label, value, unit, icon }: { label: string; value: string; u
         </div>
         <div style={{
           width: "36px", height: "36px", borderRadius: "8px",
-          background: "rgba(59,130,246,0.12)", display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(34,197,94,0.12)", display: "flex", alignItems: "center", justifyContent: "center",
         }}>{icon}</div>
       </div>
       <div style={{ fontSize: "13px", color: C.dim, marginTop: "12px" }}>{label}</div>
@@ -91,7 +91,7 @@ function PowerFlow({ pv, load, grid }: { pv: number; load: number; grid: number 
     }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
         <div style={{
-          background: "#1e2535", border: `1px solid ${C.border}`, borderRadius: "10px",
+          background: "var(--c-bg)", border: `1px solid ${C.border}`, borderRadius: "10px",
           padding: "12px 20px", textAlign: "center", minWidth: "160px",
         }}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ margin: "0 auto 6px", display: "block" }}>
@@ -110,7 +110,7 @@ function PowerFlow({ pv, load, grid }: { pv: number; load: number; grid: number 
       <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
         <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
           <div style={{
-            background: "#1e2535", border: `1px solid ${C.border}`, borderRadius: "10px",
+            background: "var(--c-bg)", border: `1px solid ${C.border}`, borderRadius: "10px",
             padding: "12px 16px", textAlign: "center",
           }}>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ margin: "0 auto 6px", display: "block" }}>
@@ -147,7 +147,7 @@ function PowerFlow({ pv, load, grid }: { pv: number; load: number; grid: number 
 
         <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
           <div style={{
-            background: "#1e2535", border: `1px solid ${C.border}`, borderRadius: "10px",
+            background: "var(--c-bg)", border: `1px solid ${C.border}`, borderRadius: "10px",
             padding: "12px 16px", textAlign: "center",
           }}>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ margin: "0 auto 6px", display: "block" }}>
@@ -172,7 +172,7 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
     <button onClick={onClick} style={{
       padding: "5px 14px", fontSize: "13px", fontWeight: 500, cursor: "pointer",
       borderRadius: "6px", border: "none",
-      background: active ? C.blue : "transparent",
+      background: active ? C.orange : "transparent",
       color: active ? "#fff" : C.muted,
       transition: "all 0.15s",
     }}>{children}</button>
@@ -180,7 +180,7 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
 }
 
 const tooltipStyle = {
-  contentStyle: { background: "#1e2535", border: `1px solid ${C.border}`, borderRadius: "8px", fontSize: "12px" },
+  contentStyle: { background: "var(--c-bg)", border: `1px solid ${C.border}`, borderRadius: "8px", fontSize: "12px" },
   labelStyle: { color: C.muted },
   itemStyle: { color: C.text },
 }
@@ -224,21 +224,21 @@ export function MonitoringDashboard() {
       <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
         <KpiCard label="Вироблено сьогодні" value={stats.yieldToday.toFixed(2)} unit="кВт·год" icon={
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill={C.blue} />
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill={C.green} />
           </svg>
         } />
         <KpiCard label="Отримано з мережі сьогодні" value={stats.supplyFromGrid.toFixed(2)} unit="кВт·год" icon={
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2">
             <path d="M12 2v20M2 12h20" strokeLinecap="round" />
           </svg>
         } />
         <KpiCard label="Загальне вироблення" value={stats.totalYield.toFixed(2)} unit="МВт·год" icon={
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2">
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         } />
         <KpiCard label="Дохід сьогодні" value={stats.revenueToday.toFixed(2)} unit="₪" icon={
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth="2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2">
             <line x1="12" y1="1" x2="12" y2="23" strokeLinecap="round" />
             <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" strokeLinecap="round" />
           </svg>
@@ -259,7 +259,7 @@ export function MonitoringDashboard() {
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
             <span style={{ fontSize: "14px", fontWeight: 600, color: C.text }}>Energy Trend</span>
-            <div style={{ display: "flex", gap: "4px", background: "#0b0e14", borderRadius: "8px", padding: "3px" }}>
+            <div style={{ display: "flex", gap: "4px", background: "var(--c-bg)", borderRadius: "8px", padding: "3px" }}>
               <TabBtn active={energyTab === "day"} onClick={() => setEnergyTab("day")}>День</TabBtn>
               <TabBtn active={energyTab === "month"} onClick={() => setEnergyTab("month")}>Місяць</TabBtn>
             </div>
@@ -288,7 +288,7 @@ export function MonitoringDashboard() {
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
             <span style={{ fontSize: "14px", fontWeight: 600, color: C.text }}>Revenue Trend</span>
-            <div style={{ background: "#0b0e14", borderRadius: "8px", padding: "3px" }}>
+            <div style={{ background: "var(--c-bg)", borderRadius: "8px", padding: "3px" }}>
               <TabBtn active onClick={() => {}}>Місяць</TabBtn>
             </div>
           </div>
@@ -303,7 +303,7 @@ export function MonitoringDashboard() {
               <XAxis dataKey="day" tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={{ stroke: C.border }} />
               <YAxis tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={false} unit=" ₪" />
               <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(2)} ₪`]} />
-              <Bar dataKey="revenue" name="Revenue" fill={C.purple} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="revenue" name="Revenue" fill={C.yellow} radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
