@@ -11,36 +11,15 @@ interface PasswordInputProps {
   required?: boolean;
 }
 
-export function PasswordInput({
-  value,
-  onChange,
-  placeholder = "••••••••",
-  hasError = false,
-  name,
-  required,
-}: PasswordInputProps) {
+export function PasswordInput({ value, onChange, placeholder = "••••••••", hasError = false, name, required }: PasswordInputProps) {
   const [show, setShow] = useState(false);
   const [focused, setFocused] = useState(false);
 
-  const borderColor = hasError
-    ? "#ef4444"
-    : focused
-    ? "#3b82f6"
-    : "#1e2535";
+  const borderColor = hasError ? "#ef4444" : focused ? "#22c55e" : "var(--c-border)";
 
   return (
     <div style={{ position: "relative" }}>
-      {/* Lock icon */}
-      <div
-        style={{
-          position: "absolute",
-          left: "14px",
-          top: "50%",
-          transform: "translateY(-50%)",
-          color: "#475569",
-          pointerEvents: "none",
-        }}
-      >
+      <div style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--c-dim)", pointerEvents: "none" }}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
           <path d="M7 11V7a5 5 0 0 1 10 0v4" />
@@ -58,11 +37,11 @@ export function PasswordInput({
         onBlur={() => setFocused(false)}
         style={{
           width: "100%",
-          background: "#0f1117",
+          background: "var(--c-thead)",
           border: `1px solid ${borderColor}`,
           borderRadius: "10px",
           padding: "12px 42px",
-          color: "#f1f5f9",
+          color: "var(--c-text)",
           fontSize: "14px",
           outline: "none",
           boxSizing: "border-box",
@@ -70,22 +49,13 @@ export function PasswordInput({
         }}
       />
 
-      {/* Show/hide toggle */}
       <button
         type="button"
         onClick={() => setShow((s) => !s)}
         style={{
-          position: "absolute",
-          right: "14px",
-          top: "50%",
-          transform: "translateY(-50%)",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          color: "#475569",
-          padding: 0,
-          display: "flex",
-          alignItems: "center",
+          position: "absolute", right: "14px", top: "50%", transform: "translateY(-50%)",
+          background: "none", border: "none", cursor: "pointer", color: "var(--c-dim)",
+          padding: 0, display: "flex", alignItems: "center",
         }}
         aria-label={show ? "Сховати пароль" : "Показати пароль"}
       >

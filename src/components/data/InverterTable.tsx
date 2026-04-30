@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react"
 
 const C = {
-  card: "#13161f",
-  border: "#1e2535",
-  text: "#f1f5f9",
-  muted: "#94a3b8",
-  dim: "#475569",
-  blue: "#3b82f6",
+  card:   "var(--c-card)",
+  border: "var(--c-border)",
+  text:   "var(--c-text)",
+  muted:  "var(--c-muted)",
+  dim:    "var(--c-dim)",
+  blue:   "#3b82f6",
 }
 
 type Row = {
@@ -41,10 +41,22 @@ function cellColor(key: keyof Row): string {
   return C.muted
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
+  return isMobile
+}
+
 export function InverterTable() {
   const [date, setDate] = useState<string>(toDateInput(new Date()))
   const [records, setRecords] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     let cancelled = false
@@ -56,6 +68,11 @@ export function InverterTable() {
   }, [date])
 
   const isEmpty = !loading && records.length === 0
+
+  const numFontSize = isMobile ? "13px" : "16px"
+  const periodFontSize = isMobile ? "13px" : "15px"
+  const cellPadding = isMobile ? "12px 14px" : "16px 24px"
+  const headPadding = isMobile ? "12px 14px" : "14px 24px"
 
   return (
     <div>
@@ -69,7 +86,7 @@ export function InverterTable() {
           style={{
             background: C.card, border: `1px solid ${C.border}`, borderRadius: "8px",
             padding: "8px 12px", color: C.text, fontSize: "13px", outline: "none",
-            colorScheme: "dark",
+            colorScheme: "light dark",
           }}
         />
         <span style={{ fontSize: "12px", color: C.dim, marginLeft: "auto" }}>
@@ -80,30 +97,38 @@ export function InverterTable() {
       {/* Table */}
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                {COLUMNS.map(({ label, unit }) => (
-                  <th key={label} style={{
-                    padding: "11px 14px", textAlign: "left", color: C.dim,
-                    fontWeight: 500, whiteSpace: "nowrap", background: "#0f1117",
-                  }}>
-                    {label}
-                    {unit && <span style={{ color: "#334155", fontSize: "10px", display: "block" }}>{unit}</span>}
-                  </th>
-                ))}
+              <tr style={{ borderBottom: `2px solid ${C.border}` }}>
+                {COLUMNS.map(({ label, unit, key }) => {
+                  const isSticky = key === "statisticalPeriod"
+                  return (
+                    <th key={label} style={{
+                      padding: headPadding, textAlign: "left", color: C.muted,
+                      fontWeight: 600, whiteSpace: "nowrap", background: "var(--c-thead)",
+                      fontSize: "11px", letterSpacing: "0.6px", textTransform: "uppercase",
+                      ...(isSticky ? {
+                        position: "sticky", left: 0, zIndex: 2,
+                        boxShadow: "2px 0 6px rgba(0,0,0,0.15)",
+                      } : {}),
+                    }}>
+                      {label}
+                      {unit && <span style={{ color: C.dim, fontSize: "11px", display: "block", fontWeight: 400, textTransform: "none", letterSpacing: 0, marginTop: "2px" }}>{unit}</span>}
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={COLUMNS.length} style={{ padding: "48px", textAlign: "center", color: C.dim }}>
+                  <td colSpan={COLUMNS.length} style={{ padding: "64px", textAlign: "center", color: C.dim, fontSize: "15px" }}>
                     Завантаження...
                   </td>
                 </tr>
               ) : isEmpty ? (
                 <tr>
-                  <td colSpan={COLUMNS.length} style={{ padding: "48px", textAlign: "center", color: C.dim }}>
+                  <td colSpan={COLUMNS.length} style={{ padding: "64px", textAlign: "center", color: C.dim, fontSize: "15px" }}>
                     Немає даних за цю дату
                   </td>
                 </tr>
@@ -113,19 +138,29 @@ export function InverterTable() {
                   return (
                     <tr
                       key={idx}
-                      style={{ borderBottom: `1px solid ${C.border}`, opacity: isNight ? 0.5 : 1 }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(59,130,246,0.04)")}
+                      style={{ borderBottom: `1px solid ${C.border}`, opacity: isNight ? 0.4 : 1 }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(34,197,94,0.05)")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
                       {COLUMNS.map(({ key }) => {
                         const isNum = key !== "statisticalPeriod"
+                        const isSticky = key === "statisticalPeriod"
                         const raw = rec[key]
                         return (
                           <td key={key} style={{
-                            padding: "10px 14px",
+                            padding: cellPadding,
                             color: isNum ? cellColor(key) : C.text,
-                            fontFamily: isNum ? "monospace" : "inherit",
+                            fontFamily: isNum ? "'Geist Mono', monospace" : "inherit",
+                            fontWeight: isNum ? 600 : 500,
+                            fontSize: isNum ? numFontSize : periodFontSize,
                             whiteSpace: "nowrap",
+                            letterSpacing: isNum ? "-0.3px" : "inherit",
+                            ...(isSticky ? {
+                              position: "sticky", left: 0,
+                              background: "var(--c-card)",
+                              boxShadow: "2px 0 6px rgba(0,0,0,0.1)",
+                              zIndex: 1,
+                            } : {}),
                           }}>
                             {isNum ? Number(raw).toFixed(3) : String(raw)}
                           </td>
@@ -140,7 +175,7 @@ export function InverterTable() {
         </div>
 
         {!loading && !isEmpty && (
-          <div style={{ padding: "11px 14px", borderTop: `1px solid ${C.border}`, color: C.dim, fontSize: "12px", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ padding: "13px 20px", borderTop: `1px solid ${C.border}`, color: C.dim, fontSize: "13px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
             <span>{records.length} записів · погодинна статистика</span>
             <span>
               PV: <span style={{ color: "#22c55e" }}>{records.reduce((s, r) => s + r.pvYield, 0).toFixed(2)} кВт·год</span>

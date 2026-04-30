@@ -19,7 +19,7 @@ export function DataTable() {
   const [search, setSearch] = useState("")
   const [sortField, setSortField] = useState<keyof EnergyRecord>("recordedAt")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
-const [showImportModal, setShowImportModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [refreshTick, setRefreshTick] = useState(0)
 
@@ -27,12 +27,7 @@ const [showImportModal, setShowImportModal] = useState(false)
     let cancelled = false
     fetch("/api/records")
       .then((r) => r.json())
-      .then((data) => {
-        if (!cancelled) {
-          setRecords(data)
-          setLoading(false)
-        }
-      })
+      .then((data) => { if (!cancelled) { setRecords(data); setLoading(false) } })
     return () => { cancelled = true }
   }, [refreshTick])
 
@@ -50,12 +45,8 @@ const [showImportModal, setShowImportModal] = useState(false)
   }
 
   function handleSort(field: keyof EnergyRecord) {
-    if (sortField === field) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
-    } else {
-      setSortField(field)
-      setSortDir("asc")
-    }
+    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+    else { setSortField(field); setSortDir("asc") }
   }
 
   const filtered = records
@@ -66,9 +57,7 @@ const [showImportModal, setShowImportModal] = useState(false)
     .sort((a, b) => {
       const av = a[sortField] ?? ""
       const bv = b[sortField] ?? ""
-      return sortDir === "asc"
-        ? av > bv ? 1 : -1
-        : av < bv ? 1 : -1
+      return sortDir === "asc" ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1)
     })
 
   const SortIcon = ({ field }: { field: keyof EnergyRecord }) => (
@@ -84,9 +73,8 @@ const [showImportModal, setShowImportModal] = useState(false)
     <div>
       {/* Toolbar */}
       <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px", flexWrap: "wrap" }}>
-        {/* Search */}
         <div style={{ position: "relative", flex: 1, minWidth: "200px" }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2"
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--c-dim)" strokeWidth="2"
             style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }}>
             <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" strokeLinecap="round" />
           </svg>
@@ -96,20 +84,19 @@ const [showImportModal, setShowImportModal] = useState(false)
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
-              width: "100%", background: "#13161f", border: "1px solid #1e2535",
-              borderRadius: "8px", padding: "9px 12px 9px 38px", color: "#f1f5f9",
+              width: "100%", background: "var(--c-card)", border: "1px solid var(--c-border)",
+              borderRadius: "8px", padding: "9px 12px 9px 38px", color: "var(--c-text)",
               fontSize: "13px", outline: "none", boxSizing: "border-box",
             }}
           />
         </div>
 
-        {/* Import */}
         <button
           onClick={() => setShowImportModal(true)}
           style={{
             display: "flex", alignItems: "center", gap: "7px",
-            background: "#13161f", border: "1px solid #1e2535",
-            borderRadius: "8px", padding: "9px 14px", color: "#94a3b8",
+            background: "var(--c-card)", border: "1px solid var(--c-border)",
+            borderRadius: "8px", padding: "9px 14px", color: "var(--c-muted)",
             fontSize: "13px", cursor: "pointer", fontWeight: 500,
           }}
         >
@@ -119,15 +106,14 @@ const [showImportModal, setShowImportModal] = useState(false)
           </svg>
           Імпорт
         </button>
-
       </div>
 
       {/* Table */}
-      <div style={{ background: "#13161f", border: "1px solid #1e2535", borderRadius: "12px", overflow: "hidden" }}>
+      <div style={{ background: "var(--c-card)", border: "1px solid var(--c-border)", borderRadius: "12px", overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid #1e2535" }}>
+              <tr style={{ borderBottom: "1px solid var(--c-border)" }}>
                 {[
                   { label: "Пристрій", field: "device" },
                   { label: "Локація", field: "location" },
@@ -139,9 +125,10 @@ const [showImportModal, setShowImportModal] = useState(false)
                     key={field}
                     onClick={() => handleSort(field as keyof EnergyRecord)}
                     style={{
-                      padding: "12px 16px", textAlign: "left", color: "#64748b",
-                      fontWeight: 500, cursor: "pointer", whiteSpace: "nowrap",
-                      userSelect: "none",
+                      padding: "12px 16px", textAlign: "left", color: "var(--c-muted)",
+                      fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+                      userSelect: "none", background: "var(--c-thead)",
+                      fontSize: "11px", letterSpacing: "0.6px", textTransform: "uppercase",
                     }}
                   >
                     <span style={{ display: "inline-flex", alignItems: "center" }}>
@@ -150,19 +137,19 @@ const [showImportModal, setShowImportModal] = useState(false)
                     </span>
                   </th>
                 ))}
-                <th style={{ padding: "12px 16px", color: "#64748b", fontWeight: 500 }}>Дії</th>
+                <th style={{ padding: "12px 16px", color: "var(--c-muted)", fontWeight: 600, background: "var(--c-thead)", fontSize: "11px", letterSpacing: "0.6px", textTransform: "uppercase" }}>Дії</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "#475569" }}>
+                  <td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--c-dim)", fontSize: "15px" }}>
                     Завантаження...
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "#475569" }}>
+                  <td colSpan={6} style={{ padding: "48px", textAlign: "center", color: "var(--c-dim)", fontSize: "15px" }}>
                     {search ? "Записів не знайдено" : "Немає записів. Додайте перший запис або імпортуйте CSV."}
                   </td>
                 </tr>
@@ -170,27 +157,27 @@ const [showImportModal, setShowImportModal] = useState(false)
                 filtered.map((record) => (
                   <tr
                     key={record.id}
-                    style={{ borderBottom: "1px solid #1e2535", transition: "background 0.15s" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(59,130,246,0.04)")}
+                    style={{ borderBottom: "1px solid var(--c-border)", transition: "background 0.15s" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(34,197,94,0.05)")}
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
-                    <td style={{ padding: "12px 16px", color: "#f1f5f9", fontWeight: 500 }}>{record.device}</td>
-                    <td style={{ padding: "12px 16px", color: "#94a3b8" }}>{record.location ?? "—"}</td>
-                    <td style={{ padding: "12px 16px", color: "#3b82f6", fontFamily: "monospace" }}>
+                    <td style={{ padding: "14px 16px", color: "var(--c-text)", fontWeight: 500 }}>{record.device}</td>
+                    <td style={{ padding: "14px 16px", color: "var(--c-muted)" }}>{record.location ?? "—"}</td>
+                    <td style={{ padding: "14px 16px", color: "#22c55e", fontFamily: "'Geist Mono', monospace", fontWeight: 600 }}>
                       {record.consumption.toFixed(2)}
                     </td>
-                    <td style={{ padding: "12px 16px", color: "#94a3b8", fontFamily: "monospace" }}>
+                    <td style={{ padding: "14px 16px", color: "var(--c-muted)", fontFamily: "'Geist Mono', monospace" }}>
                       {record.power?.toFixed(2) ?? "—"}
                     </td>
-                    <td style={{ padding: "12px 16px", color: "#94a3b8" }}>
+                    <td style={{ padding: "14px 16px", color: "var(--c-muted)" }}>
                       {new Date(record.recordedAt).toLocaleDateString("uk-UA")}
                     </td>
-                    <td style={{ padding: "12px 16px" }}>
+                    <td style={{ padding: "14px 16px" }}>
                       <button
                         onClick={() => handleDelete(record.id)}
                         disabled={deletingId === record.id}
                         style={{
-                          background: "transparent", border: "1px solid #1e2535",
+                          background: "transparent", border: "1px solid var(--c-border)",
                           borderRadius: "6px", padding: "5px 8px", color: "#ef4444",
                           cursor: "pointer", fontSize: "12px", opacity: deletingId === record.id ? 0.5 : 1,
                         }}
@@ -208,15 +195,14 @@ const [showImportModal, setShowImportModal] = useState(false)
           </table>
         </div>
 
-        {/* Footer */}
         {!loading && filtered.length > 0 && (
-          <div style={{ padding: "12px 16px", borderTop: "1px solid #1e2535", color: "#475569", fontSize: "12px" }}>
+          <div style={{ padding: "12px 16px", borderTop: "1px solid var(--c-border)", color: "var(--c-dim)", fontSize: "12px" }}>
             Показано {filtered.length} з {records.length} записів
           </div>
         )}
       </div>
 
-{showImportModal && (
+      {showImportModal && (
         <ImportModal
           onClose={() => setShowImportModal(false)}
           onImported={() => { setShowImportModal(false); triggerRefetch() }}
