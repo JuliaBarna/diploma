@@ -36,13 +36,12 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id
         token.role = (user as any).role ?? "user"
       }
-      // При Google логіні — знаходимо або створюємо юзера в БД
-      if (!token.id && token.email) {
+      if (account?.provider === "google" && token.email) {
         const dbUser = await prisma.user.upsert({
           where: { email: token.email },
           update: {
