@@ -37,6 +37,11 @@ interface DayRow {
   revenue: number
 }
 
+type ChartRow = {
+  pvYield: number; export: number; import: number; revenue: number
+  statisticalPeriod?: string; day?: string; date?: string
+}
+
 function toDateInput(d: Date)  { return d.toISOString().slice(0, 10) }
 function toMonthInput(d: Date) { return d.toISOString().slice(0, 7) }
 function toWeekInput(d: Date) {
@@ -144,7 +149,7 @@ export function AnalyticsDashboard() {
     return () => { cancelled = true }
   }, [mode, date, week, month])
 
-  const records = mode === "day" ? hourRecords : dayRows
+  const records = (mode === "day" ? hourRecords : dayRows) as ChartRow[]
   const isEmpty = !loading && records.length === 0
   const xKey    = mode === "day" ? "statisticalPeriod" : "day"
 
