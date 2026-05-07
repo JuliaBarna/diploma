@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -18,15 +19,21 @@ const NAV_ITEMS = [
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" strokeLinecap="round" strokeLinejoin="round" /></svg>,
   },
   {
+    href: "/battery", label: "Акумулятори",
+    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="16" height="10" rx="2" /><path d="M22 11v2" strokeLinecap="round" /><path d="M6 11v2M10 11v2" strokeLinecap="round" /></svg>,
+  },
+  {
     href: "/recommendations", label: "Рекомендації",
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" strokeLinecap="round" /></svg>,
   },
+  
 ];
 
 interface SidebarProps { onClose?: () => void }
 
 export function Sidebar({ onClose }: SidebarProps) {
   const pathname = usePathname();
+  const [hovered, setHovered] = useState<string | null>(null);
 
   return (
     <aside style={{ width: "220px", minWidth: "220px", background: "var(--c-card)", borderRight: "1px solid var(--c-border)", display: "flex", flexDirection: "column", height: "100vh" }}>
@@ -61,16 +68,20 @@ export function Sidebar({ onClose }: SidebarProps) {
       <nav style={{ flex: 1, padding: "16px 12px", display: "flex", flexDirection: "column", gap: "4px" }}>
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+          const isHovered = hovered === item.href && !isActive;
           return (
-            <Link key={item.href} href={item.href} style={{
-              display: "flex", alignItems: "center", gap: "10px", padding: "9px 10px",
-              borderRadius: "8px", textDecoration: "none",
-              color: isActive ? "var(--c-text)" : "var(--c-dim)",
-              background: isActive ? "rgba(34,197,94,0.10)" : "transparent",
-              fontSize: "14px", fontWeight: isActive ? 500 : 400, transition: "all 0.15s",
-              borderLeft: isActive ? "2px solid #22c55e" : "2px solid transparent",
-            }}>
-              <span style={{ color: isActive ? "#22c55e" : "var(--c-dim)", display: "flex" }}>{item.icon}</span>
+            <Link key={item.href} href={item.href}
+              onMouseEnter={() => setHovered(item.href)}
+              onMouseLeave={() => setHovered(null)}
+              style={{
+                display: "flex", alignItems: "center", gap: "10px", padding: "9px 10px",
+                borderRadius: "8px", textDecoration: "none",
+                color: isActive ? "var(--c-text)" : isHovered ? "var(--c-text)" : "var(--c-dim)",
+                background: isActive ? "rgba(34,197,94,0.10)" : isHovered ? "rgba(255,255,255,0.04)" : "transparent",
+                fontSize: "14px", fontWeight: isActive ? 500 : 400, transition: "all 0.15s",
+                borderLeft: isActive ? "2px solid #22c55e" : "2px solid transparent",
+              }}>
+              <span style={{ color: isActive ? "#22c55e" : isHovered ? "var(--c-muted)" : "var(--c-dim)", display: "flex" }}>{item.icon}</span>
               {item.label}
             </Link>
           );
