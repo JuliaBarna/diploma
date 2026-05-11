@@ -9,16 +9,28 @@ export async function GET(req: NextRequest) {
   since.setDate(since.getDate() - days)
   since.setHours(0, 0, 0, 0)
 
-  const records = await prisma.inverterRecord.findMany({
-    where: { timestamp: { gte: since } },
-    select: { pvYield: true, inverterYield: true, export: true, import: true, revenue: true },
-  })
+  const [records, rdnRows] = await Promise.all([
+    prisma.inverterRecord.findMany({
+      where: { timestamp: { gte: since } },
+      select: { timestamp: true, pvYield: true, inverterYield: true, export: true, import: true },
+    }),
+    prisma.rdnPrice.findMany({
+      where: { date: { gte: since } },
+      select: { date: true, hour: true, price: true },
+    }),
+  ])
 
-  const totalPvYield      = records.reduce((s, r) => s + r.pvYield, 0)
+  const rdnMap = new Map(rdnRows.map(r => [`${r.date.toISOString().slice(0, 10)}:${r.hour}`, r.price]))
+
+  const totalPvYield       = records.reduce((s, r) => s + r.pvYield, 0)
   const totalInverterYield = records.reduce((s, r) => s + r.inverterYield, 0)
-  const totalExport       = records.reduce((s, r) => s + r.export, 0)
-  const totalImport       = records.reduce((s, r) => s + r.import, 0)
-  const totalRevenue      = records.reduce((s, r) => s + r.revenue, 0)
+  const totalExport        = records.reduce((s, r) => s + r.export, 0)
+  const totalImport        = records.reduce((s, r) => s + r.import, 0)
+  const totalRevenue       = records.reduce((s, r) => {
+    const date = r.timestamp.toISOString().slice(0, 10)
+    const rdnPrice = rdnMap.get(`${date}:${r.timestamp.getUTCHours()}`) ?? 0
+    return s + r.export * rdnPrice / 1000
+  }, 0)
   const efficiency        = totalPvYield > 0 ? (totalInverterYield / totalPvYield) * 100 : 0
 
   return NextResponse.json({
