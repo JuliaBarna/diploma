@@ -107,256 +107,108 @@ function KpiCard({
 }
 
 // ── Power Flow Diagram ────────────────────────────────────────────────────────
-function PowerFlow({
-  pv,
-  load,
-  grid,
-}: {
-  pv: number;
-  load: number;
-  grid: number;
-}) {
-  const isExporting = grid > 0;
-  const gridAbs = Math.abs(grid);
+function PowerFlow({ pv, load, grid }: { pv: number; load: number; grid: number }) {
+  const importing = grid < 0
+  const exporting = grid > 0
+  const pvActive  = pv > 0.01
+
+  const gridColor = importing ? C.orange : exporting ? C.green : C.dim
+  const pvColor   = pvActive  ? C.green  : C.dim
+
+  const gridAnim = importing ? "pf-march 1.2s linear infinite"
+    : exporting              ? "pf-march-rev 1.2s linear infinite"
+    : "none"
+  const pvAnim = pvActive ? "pf-march 1s linear infinite" : "none"
+
+  // Node positions (viewBox 0 0 360 215)
+  // Load  : rect (130,10)→(230,70),  bottom-center (180,70)
+  // Grid  : rect (25,148)→(135,204), top-center    (80,148)
+  // PV    : rect (225,148)→(335,204),top-center    (280,148)
 
   return (
-    <div
-      style={{
-        background: C.card,
-        border: `1px solid ${C.border}`,
-        borderRadius: "12px",
-        padding: "24px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "6px",
-        }}
-      >
-        <div
-          style={{
-            background: "var(--c-bg)",
-            border: `1px solid ${C.border}`,
-            borderRadius: "10px",
-            padding: "12px 20px",
-            textAlign: "center",
-            minWidth: "160px",
-          }}
-        >
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            style={{ margin: "0 auto 6px", display: "block" }}
-          >
-            <rect
-              x="2"
-              y="7"
-              width="20"
-              height="13"
-              rx="2"
-              stroke={C.muted}
-              strokeWidth="1.5"
-            />
-            <path
-              d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"
-              stroke={C.muted}
-              strokeWidth="1.5"
-            />
-          </svg>
-          <div style={{ fontSize: "18px", fontWeight: 700, color: C.text }}>
-            {load.toFixed(1)} kW
-          </div>
-          <div style={{ fontSize: "11px", color: C.dim, marginTop: "2px" }}>
-            Споживання
-          </div>
-        </div>
-        <svg width="2" height="32" viewBox="0 0 2 32">
-          <line
-            x1="1"
-            y1="0"
-            x2="1"
-            y2="28"
-            stroke={C.green}
-            strokeWidth="2"
-            strokeDasharray="4 2"
-          />
-          <polygon points="1,32 -3,24 5,24" fill={C.green} />
-        </svg>
-      </div>
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" }}>
+      <style>{`
+        @keyframes pf-march     { from { stroke-dashoffset: 20 } to { stroke-dashoffset: 0  } }
+        @keyframes pf-march-rev { from { stroke-dashoffset: 0  } to { stroke-dashoffset: 20 } }
+      `}</style>
 
-      <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-        <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-          <div
-            style={{
-              background: "var(--c-bg)",
-              border: `1px solid ${C.border}`,
-              borderRadius: "10px",
-              padding: "12px 16px",
-              textAlign: "center",
-            }}
-          >
-            <svg
-              width="28"
-              height="28"
-              viewBox="0 0 24 24"
-              fill="none"
-              style={{ margin: "0 auto 6px", display: "block" }}
-            >
-              <path
-                d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93 4.93 19.07"
-                stroke={C.muted}
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-            <div
-              style={{
-                fontSize: "16px",
-                fontWeight: 700,
-                color: isExporting ? C.green : C.orange,
-              }}
-            >
-              {gridAbs.toFixed(1)} kW
-            </div>
-            <div style={{ fontSize: "11px", color: C.dim, marginTop: "2px" }}>
-              {isExporting ? "Експорт" : "Імпорт"}
-            </div>
-          </div>
-        </div>
+      <svg viewBox="0 0 360 240" width="100%" style={{ display: "block" }}>
 
-        <div style={{ flex: 2, position: "relative", height: "2px" }}>
-          <svg
-            width="100%"
-            height="20"
-            style={{ overflow: "visible" }}
-            viewBox="0 0 200 20"
-          >
-            {isExporting ? (
-              <>
-                <line
-                  x1="100"
-                  y1="10"
-                  x2="10"
-                  y2="10"
-                  stroke={C.green}
-                  strokeWidth="2"
-                  strokeDasharray="4 2"
-                />
-                <polygon points="6,10 14,6 14,14" fill={C.green} />
-                <line
-                  x1="100"
-                  y1="10"
-                  x2="190"
-                  y2="10"
-                  stroke={C.green}
-                  strokeWidth="2"
-                  strokeDasharray="4 2"
-                />
-                <polygon points="194,10 186,6 186,14" fill={C.green} />
-              </>
-            ) : (
-              <>
-                <line
-                  x1="10"
-                  y1="10"
-                  x2="100"
-                  y2="10"
-                  stroke={C.orange}
-                  strokeWidth="2"
-                  strokeDasharray="4 2"
-                />
-                <polygon points="104,10 96,6 96,14" fill={C.orange} />
-                <line
-                  x1="190"
-                  y1="10"
-                  x2="100"
-                  y2="10"
-                  stroke={C.green}
-                  strokeWidth="2"
-                  strokeDasharray="4 2"
-                />
-                <polygon points="96,10 104,6 104,14" fill={C.green} />
-              </>
-            )}
-          </svg>
-        </div>
+        {/* ── Криві (малюємо ПЕРШИМИ — іконки їх перекрива­ють) ────────── */}
+        {/* Q з контрольною точкою ЗОВНІ viewBox → широка плавна дуга      */}
+        {/* Сітка(80,148)→Будинок(180,72): дуга ліворуч, серед.≈(55,105)   */}
+        <path d="M 80,148 Q -20,100 180,72"
+          stroke={gridColor} strokeWidth="2.5" strokeDasharray="8 5" strokeLinecap="round"
+          fill="none" style={{ animation: gridAnim }} />
+        {/* PV(280,143)→Будинок(180,72): дуга праворуч, серед.≈(305,104)   */}
+        <path d="M 280,143 Q 380,100 180,72"
+          stroke={pvColor} strokeWidth="2.5" strokeDasharray="8 5" strokeLinecap="round"
+          fill="none" style={{ animation: pvAnim }} />
 
-        <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-          <div
-            style={{
-              background: "var(--c-bg)",
-              border: `1px solid ${C.border}`,
-              borderRadius: "10px",
-              padding: "12px 16px",
-              textAlign: "center",
-            }}
-          >
-            <svg
-              width="28"
-              height="28"
-              viewBox="0 0 24 24"
-              fill="none"
-              style={{ margin: "0 auto 6px", display: "block" }}
-            >
-              <rect
-                x="2"
-                y="8"
-                width="20"
-                height="12"
-                rx="1"
-                stroke={C.yellow}
-                strokeWidth="1.5"
-              />
-              <line
-                x1="2"
-                y1="14"
-                x2="22"
-                y2="14"
-                stroke={C.yellow}
-                strokeWidth="1.5"
-              />
-              <line
-                x1="9"
-                y1="8"
-                x2="9"
-                y2="20"
-                stroke={C.yellow}
-                strokeWidth="1.5"
-              />
-              <line
-                x1="15"
-                y1="8"
-                x2="15"
-                y2="20"
-                stroke={C.yellow}
-                strokeWidth="1.5"
-              />
-              <path
-                d="M12 3v3M8.5 4.5l2 2M15.5 4.5l-2 2"
-                stroke={C.yellow}
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
-            <div style={{ fontSize: "16px", fontWeight: 700, color: C.green }}>
-              {pv.toFixed(1)} kW
-            </div>
-            <div style={{ fontSize: "11px", color: C.dim, marginTop: "2px" }}>
-              PV
-            </div>
-          </div>
-        </div>
-      </div>
+        {/* ── Стрілки у середині дуг (відкритий простір, не перекриті) ─── */}
+        {importing && <polygon points="0,-9 8,6 -8,6" fill={C.orange} transform="translate(55,105) rotate(50)"/>}
+        {exporting && <polygon points="0,-9 8,6 -8,6" fill={C.green}  transform="translate(55,105) rotate(-130)"/>}
+        {pvActive  && <polygon points="0,-9 8,6 -8,6" fill={C.green}  transform="translate(305,104) rotate(-50)"/>}
+
+        {/* ══ Load node (top center) — будинок ══════════════════════════ */}
+        <rect x="192" y="4" width="7" height="18" rx="1" fill="#455A64"/>
+        <polygon points="153,22 180,5 207,22" fill="#37474F"/>
+        <rect x="156" y="22" width="48" height="40" rx="2" fill="#546E7A"/>
+        <rect x="186" y="22" width="18" height="40" fill="black" opacity="0.07"/>
+        <rect x="162" y="28" width="10" height="9" rx="1" fill="#B3E5FC" opacity="0.85"/>
+        <rect x="175" y="28" width="10" height="9" rx="1" fill="#B3E5FC" opacity="0.85"/>
+        <rect x="188" y="28" width="10" height="9" rx="1" fill="#B3E5FC" opacity="0.85"/>
+        <rect x="172" y="43" width="16" height="19" rx="1" fill="#37474F"/>
+        <text x="180" y="100" textAnchor="middle" fontSize="13" fontWeight="700" fill={C.text}>
+          {load.toFixed(2)} kW
+        </text>
+        <text x="180" y="110" textAnchor="middle" fontSize="9" fill={C.dim}>Споживання</text>
+
+        {/* ══ Grid node (bottom left) — пілон ══════════════════════════ */}
+        <line x1="56" y1="148" x2="104" y2="148" stroke={gridColor} strokeWidth="2.2"/>
+        <circle cx="56" cy="148" r="2.5" fill={gridColor}/>
+        <circle cx="104" cy="148" r="2.5" fill={gridColor}/>
+        <line x1="80" y1="148" x2="80" y2="165" stroke={gridColor} strokeWidth="2.2"/>
+        <line x1="60" y1="165" x2="100" y2="165" stroke={gridColor} strokeWidth="2.2"/>
+        <circle cx="60" cy="165" r="2" fill={gridColor}/>
+        <circle cx="100" cy="165" r="2" fill={gridColor}/>
+        <line x1="80" y1="148" x2="60" y2="165" stroke={gridColor} strokeWidth="1.5"/>
+        <line x1="80" y1="148" x2="100" y2="165" stroke={gridColor} strokeWidth="1.5"/>
+        <line x1="80" y1="165" x2="73" y2="195" stroke={gridColor} strokeWidth="2"/>
+        <line x1="80" y1="165" x2="87" y2="195" stroke={gridColor} strokeWidth="2"/>
+        <line x1="73" y1="174" x2="87" y2="186" stroke={gridColor} strokeWidth="1.2"/>
+        <line x1="87" y1="174" x2="73" y2="186" stroke={gridColor} strokeWidth="1.2"/>
+        <line x1="73" y1="195" x2="58" y2="208" stroke={gridColor} strokeWidth="2.2"/>
+        <line x1="87" y1="195" x2="102" y2="208" stroke={gridColor} strokeWidth="2.2"/>
+        <line x1="51" y1="208" x2="65" y2="208" stroke={gridColor} strokeWidth="2.5"/>
+        <line x1="95" y1="208" x2="109" y2="208" stroke={gridColor} strokeWidth="2.5"/>
+        <text x="80" y="221" textAnchor="middle" fontSize="12" fontWeight="700" fill={gridColor}>
+          {Math.abs(grid).toFixed(2)} kW
+        </text>
+        <text x="80" y="232" textAnchor="middle" fontSize="9" fill={C.dim}>
+          {importing ? "Імпорт" : exporting ? "Експорт" : "Мережа"}
+        </text>
+
+        {/* ══ PV node (bottom right) — сонячна панель ══════════════════ */}
+        {pvActive && <rect x="246" y="140" width="68" height="46" rx="4" fill={C.green} opacity="0.07"/>}
+        <rect x="249" y="143" width="62" height="42" rx="3" fill="#0D47A1"/>
+        <rect x="249" y="143" width="62" height="42" rx="3" fill="none" stroke="#1565C0" strokeWidth="1.5"/>
+        <line x1="249" y1="157" x2="311" y2="157" stroke="#1976D2" strokeWidth="0.8"/>
+        <line x1="249" y1="171" x2="311" y2="171" stroke="#1976D2" strokeWidth="0.8"/>
+        <line x1="270" y1="143" x2="270" y2="185" stroke="#1976D2" strokeWidth="0.8"/>
+        <line x1="290" y1="143" x2="290" y2="185" stroke="#1976D2" strokeWidth="0.8"/>
+        <rect x="251" y="145" width="27" height="9" rx="2" fill="white" opacity="0.06"/>
+        <line x1="280" y1="185" x2="280" y2="204" stroke="#546E7A" strokeWidth="2.5"/>
+        <line x1="267" y1="204" x2="293" y2="204" stroke="#546E7A" strokeWidth="2.5"/>
+        <text x="280" y="219" textAnchor="middle" fontSize="12" fontWeight="700"
+          fill={pvActive ? C.green : C.text}>
+          {pv.toFixed(2)} kW
+        </text>
+        <text x="280" y="230" textAnchor="middle" fontSize="9" fill={C.dim}>PV</text>
+
+      </svg>
     </div>
-  );
+  )
 }
 
 // ── Chart tab button ──────────────────────────────────────────────────────────
@@ -449,6 +301,20 @@ export function MonitoringDashboard() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      {/* Дата даних */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: C.dim }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" strokeLinecap="round" />
+        </svg>
+        Дані за{" "}
+        <strong style={{ color: C.muted }}>
+          {new Date(stats.dataDate).toLocaleDateString("uk-UA", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}
+        </strong>
+        <span style={{ marginLeft: "4px", padding: "2px 8px", borderRadius: "4px", background: "rgba(234,179,8,0.12)", color: C.yellow, fontSize: "11px" }}>
+          не в реальному часі
+        </span>
+      </div>
+
       {/* KPI row */}
       <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
         <KpiCard
@@ -673,7 +539,7 @@ export function MonitoringDashboard() {
             }}
           >
             <span style={{ fontSize: "14px", fontWeight: 600, color: C.text }}>
-              Revenue Trend
+             Дохід
             </span>
             <div
               style={{
@@ -719,6 +585,7 @@ export function MonitoringDashboard() {
                 tickLine={false}
                 axisLine={false}
                 unit=" ₪"
+                domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
               />
               <Tooltip
                 {...tooltipStyle}
