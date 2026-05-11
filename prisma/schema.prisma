@@ -82,6 +82,16 @@ model Scenario {
   createdAt   DateTime @default(now())
 }
 
+model RdnPrice {
+  id        String   @id @default(cuid())
+  date      DateTime // тільки дата, час = 00:00:00 UTC
+  hour      Int      // 0–23
+  price     Float    // грн/МВт·год
+
+  @@unique([date, hour])
+  @@index([date])
+}
+
 model InverterRecord {
   id                String   @id @default(cuid())
   timestamp         DateTime // година доби: 2026-04-14T10:00:00Z
