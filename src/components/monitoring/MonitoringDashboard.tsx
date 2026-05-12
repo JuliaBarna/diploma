@@ -509,6 +509,14 @@ export function MonitoringDashboard() {
                 dot={false}
                 strokeWidth={1.5}
               />
+              <Line
+                type="monotone"
+                dataKey="export"
+                name="Експорт"
+                stroke={C.blue}
+                dot={false}
+                strokeWidth={1.5}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>

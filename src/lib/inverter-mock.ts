@@ -3,6 +3,7 @@ export interface EnergyChartPoint {
   pvOutput: number
   gridPower: number
   consumption: number
+  export: number
 }
 
 export interface RevenueChartPoint {

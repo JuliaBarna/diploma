@@ -13,15 +13,6 @@
 // Ціноутворення (Україна):
 //   Купівля:  ринкова ціна РДН  +  розподіл (3.6 UAH/kWh)
 //   Продаж:   тільки ринкова ціна РДН (розподіл не компенсується при продажу)
-
-// ── Типові ціни РДН OREE (UAH/MWh) — репрезентативна робоча доба ─────────────
-export const SAMPLE_OREE_PRICES: number[] = [
-  2100, 1900, 1750, 1680, 1750, 2300,   // 00–05  ніч (найдешевше)
-  5400, 8200, 9800, 9100, 7800, 6900,   // 06–11  ранковий пік
-  6300, 5900, 6100, 6500, 7000, 7600,   // 12–17  день/вечір
-  9400, 11800, 10600, 8200, 4900, 2800, // 18–23  вечірній пік → спад
-]
-
 // Ціна розподілу електроенергії — стала складова при купівлі з мережі
 export const DISTRIBUTION_COST_UAH_KWH = 3.6
 
@@ -610,7 +601,7 @@ export function compareScenarios(
 
     let prevSoC = 0.5
     const results = allDayHours.map((dayHours, i) => {
-      const prices = allDayPrices[i] ?? allDayPrices[0] ?? SAMPLE_OREE_PRICES
+      const prices = allDayPrices[i] ?? allDayPrices[0] ?? []
       const date = new Date(Date.now() - (allDayHours.length - i) * 86_400_000)
         .toISOString().slice(0, 10)
       const result = simulateDay(date, dayHours, prices, config, prevSoC)

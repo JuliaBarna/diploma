@@ -6,7 +6,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer, Cell,
 } from "recharts"
-import { SAMPLE_OREE_PRICES, priceColor, priceTier } from "@/lib/battery-optimizer"
+import { priceColor, priceTier } from "@/lib/battery-optimizer"
 
 // ── Типи (відображають відповідь API) ────────────────────────────────────────
 
@@ -125,8 +125,8 @@ export function BatterySimulator() {
   const [chargeMaxKwh, setChargeMaxKwh] = useState(4.0)
   const [dischargeMinKwh, setDischargeMinKwh] = useState(7.0)
   const [selectedDate, setSelectedDate] = useState(() => "2026-04-01")
-  const [prices, setPrices] = useState<number[]>([...SAMPLE_OREE_PRICES])
-  const [pricesText, setPricesText] = useState(SAMPLE_OREE_PRICES.join(", "))
+  const [prices, setPrices] = useState<number[]>(Array(24).fill(0))
+  const [pricesText, setPricesText] = useState("")
   const [showPriceEditor, setShowPriceEditor] = useState(false)
   const [priceTextError, setPriceTextError] = useState(false)
 
@@ -165,13 +165,6 @@ export function BatterySimulator() {
     setPriceTextError(false)
     setPrices(parsed)
     runSimulation(parsed)
-  }
-
-  function resetToSample() {
-    setPrices([...SAMPLE_OREE_PRICES])
-    setPricesText(SAMPLE_OREE_PRICES.join(", "))
-    setPriceTextError(false)
-    runSimulation([...SAMPLE_OREE_PRICES])
   }
 
   // Дані для графіка цін
@@ -342,7 +335,7 @@ export function BatterySimulator() {
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "14px", padding: "24px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
           <div>
-            <div style={{ fontSize: "15px", fontWeight: 600, color: C.text }}>Погодинні ціни РДН (OREE)</div>
+            <div style={{ fontSize: "15px", fontWeight: 600, color: C.text }}>Погодинні ціни РДН</div>
             <div style={{ fontSize: "12px", color: C.dim, marginTop: "2px" }}>
               Середня: <strong style={{ color: C.text }}>₴{fmt(avgPrice, 0)}/МВт·год</strong>
               {" · "}
@@ -352,10 +345,7 @@ export function BatterySimulator() {
             </div>
           </div>
           <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={resetToSample}
-              style={{ padding: "6px 14px", borderRadius: "8px", fontSize: "12px", border: `1px solid ${C.border}`, background: "transparent", color: C.muted, cursor: "pointer" }}>
-              Типові ціни OREE
-            </button>
+           
             <button onClick={() => setShowPriceEditor(v => !v)}
               style={{ padding: "6px 14px", borderRadius: "8px", fontSize: "12px", border: `1px solid ${C.border}`, background: showPriceEditor ? "rgba(59,130,246,0.1)" : "transparent", color: showPriceEditor ? "#3b82f6" : C.muted, cursor: "pointer" }}>
               {showPriceEditor ? "Сховати редактор" : "Редагувати ціни"}
@@ -396,7 +386,7 @@ export function BatterySimulator() {
         {showPriceEditor && (
           <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: `1px solid ${C.border}` }}>
             <div style={{ fontSize: "12px", color: C.dim, marginBottom: "8px" }}>
-              Введіть 24 ціни через кому (UAH/МВт·год) — дані РДН OREE за конкретну добу:
+              Введіть 24 ціни через кому (UAH/МВт·год) за конкретну добу:
             </div>
             <textarea
               value={pricesText}
@@ -417,10 +407,6 @@ export function BatterySimulator() {
               <button onClick={applyPriceText}
                 style={{ padding: "8px 20px", borderRadius: "8px", fontSize: "13px", fontWeight: 600, background: "#22c55e", color: "#fff", border: "none", cursor: "pointer" }}>
                 Застосувати і запустити
-              </button>
-              <button onClick={resetToSample}
-                style={{ padding: "8px 16px", borderRadius: "8px", fontSize: "13px", border: `1px solid ${C.border}`, background: "transparent", color: C.muted, cursor: "pointer" }}>
-                Скинути до типових OREE
               </button>
             </div>
           </div>

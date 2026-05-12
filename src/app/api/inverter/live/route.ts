@@ -59,6 +59,7 @@ export async function GET() {
     pvOutput:    r2(r.pvYield),
     gridPower:   r2(r.import),
     consumption: r2(r.pvYield + r.import - r.export),
+    export:      r2(r.export),
   }))
 
   // ── Дані за місяць останньої доби ─────────────────────────────────────────
@@ -96,6 +97,7 @@ export async function GET() {
     pvOutput:    r2(d.pv),
     gridPower:   r2(d.imp),
     consumption: r2(d.pv + d.imp - d.exp),
+    export:      r2(d.exp),
   }))
 
   const revenueChartData = Array.from(dayMap.entries()).map(([day, d]) => ({
