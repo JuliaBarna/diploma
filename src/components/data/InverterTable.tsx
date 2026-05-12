@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { InverterImportModal } from "./InverterImportModal"
 
 const C = {
   card:   "var(--c-card)",
@@ -14,19 +15,17 @@ const C = {
 type Row = {
   statisticalPeriod: string
   pvYield: number
-  inverterYield: number
   export: number
   import: number
-  revenue: number
+  consumption: number
 }
 
 const COLUMNS: { label: string; key: keyof Row; unit: string }[] = [
   { label: "Статистичний період", key: "statisticalPeriod", unit: "" },
   { label: "Вироблення PV",       key: "pvYield",           unit: "кВт·год" },
-  { label: "Вироблення інвертора",key: "inverterYield",     unit: "кВт·год" },
   { label: "Експорт",             key: "export",            unit: "кВт·год" },
   { label: "Імпорт",              key: "import",            unit: "кВт·год" },
-  { label: "Дохід",               key: "revenue",           unit: "₪" },
+  { label: "Споживання",          key: "consumption",       unit: "кВт·год" },
 ]
 
 function toDateInput(d: Date): string {
@@ -34,10 +33,10 @@ function toDateInput(d: Date): string {
 }
 
 function cellColor(key: keyof Row): string {
-  if (key === "pvYield" || key === "inverterYield") return "#22c55e"
+  if (key === "pvYield") return "#22c55e"
+  if (key === "consumption") return "#22c55e"
   if (key === "export") return C.blue
   if (key === "import") return "#f97316"
-  if (key === "revenue") return "#a855f7"
   return C.muted
 }
 
@@ -55,15 +54,23 @@ function useIsMobile() {
 export function InverterTable() {
   const [date, setDate] = useState<string>(toDateInput(new Date()))
   const [records, setRecords] = useState<Row[]>([])
-  const [loading, setLoading] = useState(true)
+  const [fetchedDate, setFetchedDate] = useState<string | null>(null)
+  const [showRdnModal, setShowRdnModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const isMobile = useIsMobile()
+
+  const loading = fetchedDate !== date
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
     fetch(`/api/inverter/records?date=${date}`)
       .then((r) => r.json())
-      .then((data) => { if (!cancelled) { setRecords(data); setLoading(false) } })
+      .then((data) => {
+        if (!cancelled) {
+          setRecords(data)
+          setFetchedDate(date)
+        }
+      })
     return () => { cancelled = true }
   }, [date])
 
@@ -89,10 +96,29 @@ export function InverterTable() {
             colorScheme: "light dark",
           }}
         />
-        <span style={{ fontSize: "12px", color: C.dim, marginLeft: "auto" }}>
-          Погодинні дані · 24 записи
-        </span>
+        <button
+          onClick={() => setShowImportModal(true)}
+          style={{
+            marginLeft: "auto", display: "flex", alignItems: "center", gap: "7px",
+            background: C.card, border: `1px solid ${C.border}`,
+            borderRadius: "8px", padding: "8px 14px", color: C.muted,
+            fontSize: "13px", cursor: "pointer", fontWeight: 500,
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Імпорт даних
+        </button>
       </div>
+
+      {showImportModal && (
+        <InverterImportModal
+          onClose={() => setShowImportModal(false)}
+          onImported={(_, date) => { setShowImportModal(false); setDate(date); setFetchedDate(null) }}
+        />
+      )}
 
       {/* Table */}
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", overflow: "hidden" }}>
@@ -134,11 +160,10 @@ export function InverterTable() {
                 </tr>
               ) : (
                 records.map((rec, idx) => {
-                  const isNight = rec.pvYield === 0
                   return (
                     <tr
                       key={idx}
-                      style={{ borderBottom: `1px solid ${C.border}`, opacity: isNight ? 0.4 : 1 }}
+                      style={{ borderBottom: `1px solid ${C.border}` }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(34,197,94,0.05)")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
@@ -177,10 +202,11 @@ export function InverterTable() {
         {!loading && !isEmpty && (
           <div style={{ padding: "13px 20px", borderTop: `1px solid ${C.border}`, color: C.dim, fontSize: "13px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
             <span>{records.length} записів · погодинна статистика</span>
-            <span>
-              PV: <span style={{ color: "#22c55e" }}>{records.reduce((s, r) => s + r.pvYield, 0).toFixed(2)} кВт·год</span>
-              {" "}· Імпорт: <span style={{ color: "#f97316" }}>{records.reduce((s, r) => s + r.import, 0).toFixed(2)} кВт·год</span>
-              {" "}· Дохід: <span style={{ color: "#a855f7" }}>{records.reduce((s, r) => s + r.revenue, 0).toFixed(2)} ₪</span>
+            <span style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+              <span>Споживання: <span style={{ color: C.text, fontWeight: 600 }}>{records.reduce((s, r) => s + r.consumption, 0).toFixed(2)} кВт·год</span></span>
+              <span>Сонце: <span style={{ color: "#22c55e", fontWeight: 600 }}>{records.reduce((s, r) => s + r.pvYield, 0).toFixed(2)} кВт·год</span></span>
+              <span>Експорт: <span style={{ color: "#3b82f6", fontWeight: 600 }}>{records.reduce((s, r) => s + r.export, 0).toFixed(2)} кВт·год</span></span>
+              <span>Імпорт: <span style={{ color: "#f97316", fontWeight: 600 }}>{records.reduce((s, r) => s + r.import, 0).toFixed(2)} кВт·год</span></span>
             </span>
           </div>
         )}

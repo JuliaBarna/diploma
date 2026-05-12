@@ -5,7 +5,6 @@ import {
   compareScenarios,
   runFuzzyAnalysis,
   DEFAULT_BATTERY_CONFIG,
-  SAMPLE_OREE_PRICES,
   type BatteryConfig,
   type HourInput,
 } from "@/lib/battery-optimizer"
@@ -30,12 +29,22 @@ export async function GET(req: NextRequest) {
   const dischargeMinPrice  = Number(searchParams.get("dischargeMinPrice") ?? DEFAULT_BATTERY_CONFIG.dischargeMinPriceKwh)
   const goal               = (searchParams.get("goal") ?? "cost_savings") as "arbitrage" | "cost_savings"
 
-  // Парсимо ціни
+  // Парсимо ціни: або з параметру, або з БД РДН
   const rawPrices = searchParams.get("prices")
-  const dayPrices: number[] = rawPrices
-    ? rawPrices.split(",").map(Number).slice(0, 24)
-    : [...SAMPLE_OREE_PRICES]
-  while (dayPrices.length < 24) dayPrices.push(dayPrices[dayPrices.length - 1] ?? 5000)
+  let dayPrices: number[]
+  if (rawPrices) {
+    dayPrices = rawPrices.split(",").map(Number).slice(0, 24)
+  } else {
+    const dayStart = new Date(dateParam + "T00:00:00.000Z")
+    const dayEnd   = new Date(dateParam + "T23:59:59.999Z")
+    const rdnRows  = await prisma.rdnPrice.findMany({
+      where: { date: { gte: dayStart, lte: dayEnd } },
+      select: { hour: true, price: true },
+      orderBy: { hour: "asc" },
+    })
+    dayPrices = Array.from({ length: 24 }, (_, h) => rdnRows.find(r => r.hour === h)?.price ?? 0)
+  }
+  while (dayPrices.length < 24) dayPrices.push(dayPrices[dayPrices.length - 1] ?? 0)
 
   const config: BatteryConfig = {
     ...DEFAULT_BATTERY_CONFIG,

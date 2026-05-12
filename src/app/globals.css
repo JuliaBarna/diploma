@@ -50,6 +50,11 @@ body {
   to { transform: rotate(360deg); }
 }
 
+/* ── Power flow icon theming ──────────────────────── */
+[data-theme="light"] .pylon-icon {
+  filter: brightness(0) saturate(100%) invert(28%) sepia(40%) saturate(600%) hue-rotate(355deg) brightness(85%);
+}
+
 /* ── Hide number input spinners ───────────────────── */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {

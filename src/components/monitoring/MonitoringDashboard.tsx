@@ -1,355 +1,606 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 import {
-  LineChart, Line, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend,
-} from "recharts"
-import type { LiveStats } from "@/lib/inverter-mock"
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import type { LiveStats } from "@/lib/inverter-mock";
 
 const C = {
-  bg:     "var(--c-bg)",
-  card:   "var(--c-card)",
+  bg: "var(--c-bg)",
+  card: "var(--c-card)",
   border: "var(--c-border)",
-  text:   "var(--c-text)",
-  muted:  "var(--c-muted)",
-  dim:    "var(--c-dim)",
-  blue:   "#3b82f6",
-  green:  "#22c55e",
+  text: "var(--c-text)",
+  muted: "var(--c-muted)",
+  dim: "var(--c-dim)",
+  blue: "#3b82f6",
+  green: "#22c55e",
   orange: "#f97316",
   purple: "#a855f7",
   yellow: "#eab308",
-}
+};
 
 function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false)
+  const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768)
-    check()
-    window.addEventListener("resize", check)
-    return () => window.removeEventListener("resize", check)
-  }, [])
-  return isMobile
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return isMobile;
 }
 
 // ── KPI Card ────────────────────────────────────────────────────────────────
-function KpiCard({ label, value, unit, icon }: { label: string; value: string; unit: string; icon: React.ReactNode }) {
+function KpiCard({
+  label,
+  value,
+  unit,
+  icon,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+  icon: React.ReactNode;
+}) {
   return (
-    <div style={{
-      background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px",
-      padding: "20px 24px", flex: 1, minWidth: "140px",
-    }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+    <div
+      style={{
+        background: C.card,
+        border: `1px solid ${C.border}`,
+        borderRadius: "12px",
+        padding: "20px 24px",
+        flex: 1,
+        minWidth: "140px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+        }}
+      >
         <div>
-          <div style={{ fontSize: "24px", fontWeight: 700, color: C.text, lineHeight: 1 }}>{value}</div>
-          <div style={{ fontSize: "12px", color: C.muted, marginTop: "2px" }}>{unit}</div>
+          <div
+            style={{
+              fontSize: "24px",
+              fontWeight: 700,
+              color: C.text,
+              lineHeight: 1,
+            }}
+          >
+            {value}
+          </div>
+          <div style={{ fontSize: "12px", color: C.muted, marginTop: "2px" }}>
+            {unit}
+          </div>
         </div>
-        <div style={{
-          width: "36px", height: "36px", borderRadius: "8px",
-          background: "rgba(34,197,94,0.12)", display: "flex", alignItems: "center", justifyContent: "center",
-        }}>{icon}</div>
+        <div
+          style={{
+            width: "36px",
+            height: "36px",
+            borderRadius: "8px",
+            background: "rgba(34,197,94,0.12)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {icon}
+        </div>
       </div>
-      <div style={{ fontSize: "13px", color: C.dim, marginTop: "12px" }}>{label}</div>
+      <div style={{ fontSize: "13px", color: C.dim, marginTop: "12px" }}>
+        {label}
+      </div>
     </div>
-  )
-}
-
-// ── Alerts Bar ───────────────────────────────────────────────────────────────
-function AlertsBar({ isMobile }: { isMobile: boolean }) {
-  const items = [
-    { label: "Critical", count: 0, color: "#ef4444" },
-    { label: "Major",    count: 0, color: "#f97316" },
-    { label: "Minor",    count: 0, color: "#eab308" },
-    { label: "Warning",  count: 0, color: "#3b82f6" },
-  ]
-  return (
-    <div style={{
-      display: "flex", flexWrap: isMobile ? "wrap" : "nowrap", gap: "12px",
-      background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "14px 20px",
-    }}>
-      {items.map(({ label, count, color }) => (
-        <div key={label} style={{ display: "flex", alignItems: "center", gap: "8px", flex: isMobile ? "1 1 40%" : 1 }}>
-          <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: color, flexShrink: 0 }} />
-          <span style={{ fontSize: "13px", color: C.muted }}>{label}</span>
-          <span style={{ fontSize: "20px", fontWeight: 700, color: C.text, marginLeft: "auto" }}>{count}</span>
-        </div>
-      ))}
-    </div>
-  )
+  );
 }
 
 // ── Power Flow Diagram ────────────────────────────────────────────────────────
 function PowerFlow({ pv, load, grid }: { pv: number; load: number; grid: number }) {
-  const isExporting = grid > 0
-  const gridAbs = Math.abs(grid)
+  const importing = grid < 0
+  const exporting = grid > 0
+  const pvActive  = pv > 0.01
+
+  const gridColor = importing ? C.orange : exporting ? C.green : C.dim
+  const pvColor   = pvActive  ? C.green  : C.dim
+
+  const gridAnim = importing ? "pf-march 1.2s linear infinite"
+    : exporting              ? "pf-march-rev 1.2s linear infinite"
+    : "none"
+  const pvAnim = pvActive ? "pf-march 1s linear infinite" : "none"
+
+  // Node positions (viewBox 0 0 360 215)
+  // Load  : rect (130,10)→(230,70),  bottom-center (180,70)
+  // Grid  : rect (25,148)→(135,204), top-center    (80,148)
+  // PV    : rect (225,148)→(335,204),top-center    (280,148)
 
   return (
-    <div style={{
-      background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px",
-      padding: "24px", display: "flex", flexDirection: "column", alignItems: "center",
-    }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-        <div style={{
-          background: "var(--c-bg)", border: `1px solid ${C.border}`, borderRadius: "10px",
-          padding: "12px 20px", textAlign: "center", minWidth: "160px",
-        }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ margin: "0 auto 6px", display: "block" }}>
-            <rect x="2" y="7" width="20" height="13" rx="2" stroke={C.muted} strokeWidth="1.5" />
-            <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" stroke={C.muted} strokeWidth="1.5" />
-          </svg>
-          <div style={{ fontSize: "18px", fontWeight: 700, color: C.text }}>{load.toFixed(1)} kW</div>
-          <div style={{ fontSize: "11px", color: C.dim, marginTop: "2px" }}>Споживання</div>
-        </div>
-        <svg width="2" height="32" viewBox="0 0 2 32">
-          <line x1="1" y1="0" x2="1" y2="28" stroke={C.green} strokeWidth="2" strokeDasharray="4 2" />
-          <polygon points="1,32 -3,24 5,24" fill={C.green} />
-        </svg>
-      </div>
+    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" }}>
+      <style>{`
+        @keyframes pf-march     { from { stroke-dashoffset: 20 } to { stroke-dashoffset: 0  } }
+        @keyframes pf-march-rev { from { stroke-dashoffset: 0  } to { stroke-dashoffset: 20 } }
+      `}</style>
 
-      <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-        <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-          <div style={{
-            background: "var(--c-bg)", border: `1px solid ${C.border}`, borderRadius: "10px",
-            padding: "12px 16px", textAlign: "center",
-          }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ margin: "0 auto 6px", display: "block" }}>
-              <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93 4.93 19.07" stroke={C.muted} strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-            <div style={{ fontSize: "16px", fontWeight: 700, color: isExporting ? C.green : C.orange }}>
-              {gridAbs.toFixed(1)} kW
-            </div>
-            <div style={{ fontSize: "11px", color: C.dim, marginTop: "2px" }}>
-              {isExporting ? "Експорт" : "Імпорт"}
-            </div>
-          </div>
-        </div>
+      <svg viewBox="0 0 360 240" width="100%" style={{ display: "block" }}>
 
-        <div style={{ flex: 2, position: "relative", height: "2px" }}>
-          <svg width="100%" height="20" style={{ overflow: "visible" }} viewBox="0 0 200 20">
-            {isExporting ? (
-              <>
-                <line x1="100" y1="10" x2="10" y2="10" stroke={C.green} strokeWidth="2" strokeDasharray="4 2" />
-                <polygon points="6,10 14,6 14,14" fill={C.green} />
-                <line x1="100" y1="10" x2="190" y2="10" stroke={C.green} strokeWidth="2" strokeDasharray="4 2" />
-                <polygon points="194,10 186,6 186,14" fill={C.green} />
-              </>
-            ) : (
-              <>
-                <line x1="10" y1="10" x2="100" y2="10" stroke={C.orange} strokeWidth="2" strokeDasharray="4 2" />
-                <polygon points="104,10 96,6 96,14" fill={C.orange} />
-                <line x1="190" y1="10" x2="100" y2="10" stroke={C.green} strokeWidth="2" strokeDasharray="4 2" />
-                <polygon points="96,10 104,6 104,14" fill={C.green} />
-              </>
-            )}
-          </svg>
-        </div>
+        {/* ── Криві (малюємо ПЕРШИМИ — іконки їх перекрива­ють) ────────── */}
+        {/* Q з контрольною точкою ЗОВНІ viewBox → широка плавна дуга      */}
+        {/* Сітка(80,148)→Будинок(180,72): дуга ліворуч, серед.≈(55,105)   */}
+        <path d="M 80,148 Q -20,100 180,72"
+          stroke={gridColor} strokeWidth="2.5" strokeDasharray="8 5" strokeLinecap="round"
+          fill="none" style={{ animation: gridAnim }} />
+        {/* PV(280,143)→Будинок(180,72): дуга праворуч, серед.≈(305,104)   */}
+        <path d="M 280,143 Q 380,100 180,72"
+          stroke={pvColor} strokeWidth="2.5" strokeDasharray="8 5" strokeLinecap="round"
+          fill="none" style={{ animation: pvAnim }} />
 
-        <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-          <div style={{
-            background: "var(--c-bg)", border: `1px solid ${C.border}`, borderRadius: "10px",
-            padding: "12px 16px", textAlign: "center",
-          }}>
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ margin: "0 auto 6px", display: "block" }}>
-              <rect x="2" y="8" width="20" height="12" rx="1" stroke={C.yellow} strokeWidth="1.5" />
-              <line x1="2" y1="14" x2="22" y2="14" stroke={C.yellow} strokeWidth="1.5" />
-              <line x1="9" y1="8" x2="9" y2="20" stroke={C.yellow} strokeWidth="1.5" />
-              <line x1="15" y1="8" x2="15" y2="20" stroke={C.yellow} strokeWidth="1.5" />
-              <path d="M12 3v3M8.5 4.5l2 2M15.5 4.5l-2 2" stroke={C.yellow} strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-            <div style={{ fontSize: "16px", fontWeight: 700, color: C.green }}>{pv.toFixed(1)} kW</div>
-            <div style={{ fontSize: "11px", color: C.dim, marginTop: "2px" }}>PV</div>
-          </div>
-        </div>
-      </div>
+        {/* ── Стрілки у середині дуг (відкритий простір, не перекриті) ─── */}
+        {importing && <polygon points="0,-9 8,6 -8,6" fill={C.orange} transform="translate(55,105) rotate(50)"/>}
+        {exporting && <polygon points="0,-9 8,6 -8,6" fill={C.green}  transform="translate(55,105) rotate(-130)"/>}
+        {pvActive  && <polygon points="0,-9 8,6 -8,6" fill={C.green}  transform="translate(305,104) rotate(-50)"/>}
+
+        {/* ══ Load node (top center) — будинок ══════════════════════════ */}
+        <rect x="192" y="4" width="7" height="18" rx="1" fill="#455A64"/>
+        <polygon points="153,22 180,5 207,22" fill="#37474F"/>
+        <rect x="156" y="22" width="48" height="40" rx="2" fill="#546E7A"/>
+        <rect x="186" y="22" width="18" height="40" fill="black" opacity="0.07"/>
+        <rect x="162" y="28" width="10" height="9" rx="1" fill="#B3E5FC" opacity="0.85"/>
+        <rect x="175" y="28" width="10" height="9" rx="1" fill="#B3E5FC" opacity="0.85"/>
+        <rect x="188" y="28" width="10" height="9" rx="1" fill="#B3E5FC" opacity="0.85"/>
+        <rect x="172" y="43" width="16" height="19" rx="1" fill="#37474F"/>
+        <text x="180" y="100" textAnchor="middle" fontSize="13" fontWeight="700" fill={C.text}>
+          {load.toFixed(2)} kW
+        </text>
+        <text x="180" y="110" textAnchor="middle" fontSize="9" fill={C.dim}>Споживання</text>
+
+        {/* ══ Grid node (bottom left) — пілон ══════════════════════════ */}
+        <line x1="56" y1="148" x2="104" y2="148" stroke={gridColor} strokeWidth="2.2"/>
+        <circle cx="56" cy="148" r="2.5" fill={gridColor}/>
+        <circle cx="104" cy="148" r="2.5" fill={gridColor}/>
+        <line x1="80" y1="148" x2="80" y2="165" stroke={gridColor} strokeWidth="2.2"/>
+        <line x1="60" y1="165" x2="100" y2="165" stroke={gridColor} strokeWidth="2.2"/>
+        <circle cx="60" cy="165" r="2" fill={gridColor}/>
+        <circle cx="100" cy="165" r="2" fill={gridColor}/>
+        <line x1="80" y1="148" x2="60" y2="165" stroke={gridColor} strokeWidth="1.5"/>
+        <line x1="80" y1="148" x2="100" y2="165" stroke={gridColor} strokeWidth="1.5"/>
+        <line x1="80" y1="165" x2="73" y2="195" stroke={gridColor} strokeWidth="2"/>
+        <line x1="80" y1="165" x2="87" y2="195" stroke={gridColor} strokeWidth="2"/>
+        <line x1="73" y1="174" x2="87" y2="186" stroke={gridColor} strokeWidth="1.2"/>
+        <line x1="87" y1="174" x2="73" y2="186" stroke={gridColor} strokeWidth="1.2"/>
+        <line x1="73" y1="195" x2="58" y2="208" stroke={gridColor} strokeWidth="2.2"/>
+        <line x1="87" y1="195" x2="102" y2="208" stroke={gridColor} strokeWidth="2.2"/>
+        <line x1="51" y1="208" x2="65" y2="208" stroke={gridColor} strokeWidth="2.5"/>
+        <line x1="95" y1="208" x2="109" y2="208" stroke={gridColor} strokeWidth="2.5"/>
+        <text x="80" y="221" textAnchor="middle" fontSize="12" fontWeight="700" fill={gridColor}>
+          {Math.abs(grid).toFixed(2)} kW
+        </text>
+        <text x="80" y="232" textAnchor="middle" fontSize="9" fill={C.dim}>
+          {importing ? "Імпорт з мережі" : exporting ? "Експорт з мережі" : "Мережа"}
+        </text>
+
+        {/* ══ PV node (bottom right) — сонячна панель ══════════════════ */}
+        {pvActive && <rect x="246" y="140" width="68" height="46" rx="4" fill={C.green} opacity="0.07"/>}
+        <rect x="249" y="143" width="62" height="42" rx="3" fill="#0D47A1"/>
+        <rect x="249" y="143" width="62" height="42" rx="3" fill="none" stroke="#1565C0" strokeWidth="1.5"/>
+        <line x1="249" y1="157" x2="311" y2="157" stroke="#1976D2" strokeWidth="0.8"/>
+        <line x1="249" y1="171" x2="311" y2="171" stroke="#1976D2" strokeWidth="0.8"/>
+        <line x1="270" y1="143" x2="270" y2="185" stroke="#1976D2" strokeWidth="0.8"/>
+        <line x1="290" y1="143" x2="290" y2="185" stroke="#1976D2" strokeWidth="0.8"/>
+        <rect x="251" y="145" width="27" height="9" rx="2" fill="white" opacity="0.06"/>
+        <line x1="280" y1="185" x2="280" y2="204" stroke="#546E7A" strokeWidth="2.5"/>
+        <line x1="267" y1="204" x2="293" y2="204" stroke="#546E7A" strokeWidth="2.5"/>
+        <text x="280" y="219" textAnchor="middle" fontSize="12" fontWeight="700"
+          fill={pvActive ? C.green : C.text}>
+          {pv.toFixed(2)} kW
+        </text>
+        <text x="280" y="230" textAnchor="middle" fontSize="9" fill={C.dim}>Сонячна генерація</text>
+
+      </svg>
     </div>
   )
 }
 
 // ── Chart tab button ──────────────────────────────────────────────────────────
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function TabBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <button onClick={onClick} style={{
-      padding: "5px 14px", fontSize: "13px", fontWeight: 500, cursor: "pointer",
-      borderRadius: "6px", border: "none",
-      background: active ? C.orange : "transparent",
-      color: active ? "#fff" : C.muted,
-      transition: "all 0.15s",
-    }}>{children}</button>
-  )
+    <button
+      onClick={onClick}
+      style={{
+        padding: "5px 14px",
+        fontSize: "13px",
+        fontWeight: 500,
+        cursor: "pointer",
+        borderRadius: "6px",
+        border: "none",
+        background: active ? C.orange : "transparent",
+        color: active ? "#fff" : C.muted,
+        transition: "all 0.15s",
+      }}
+    >
+      {children}
+    </button>
+  );
 }
 
 const tooltipStyle = {
-  contentStyle: { background: "var(--c-bg)", border: `1px solid ${C.border}`, borderRadius: "8px", fontSize: "12px" },
+  contentStyle: {
+    background: "var(--c-bg)",
+    border: `1px solid ${C.border}`,
+    borderRadius: "8px",
+    fontSize: "12px",
+  },
   labelStyle: { color: C.muted },
   itemStyle: { color: C.text },
-}
+};
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export function MonitoringDashboard() {
-  const [stats, setStats] = useState<LiveStats | null>(null)
-  const [energyTab, setEnergyTab] = useState<"day" | "month">("day")
-  const isMobile = useIsMobile()
+  const [stats, setStats] = useState<LiveStats | null>(null);
+  const [energyTab, setEnergyTab] = useState<"day" | "month">("day");
+  const isMobile = useIsMobile();
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
 
     async function load() {
       try {
-        const res = await fetch("/api/inverter/live")
-        if (!cancelled) setStats(await res.json())
-      } catch { /* ignore */ }
+        const res = await fetch("/api/inverter/live");
+        if (!cancelled) setStats(await res.json());
+      } catch {
+        /* ignore */
+      }
     }
 
-    load()
-    const id = setInterval(load, 30_000)
-    return () => { cancelled = true; clearInterval(id) }
-  }, [])
+    load();
+    const id = setInterval(load, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
 
   if (!stats) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "300px", color: C.dim, fontSize: "14px" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "300px",
+          color: C.dim,
+          fontSize: "14px",
+        }}
+      >
         Завантаження...
       </div>
-    )
+    );
   }
 
-  const energyData = energyTab === "day" ? stats.energyChartData : stats.monthEnergyData
-  const xLabel = energyTab === "day" ? "Година" : "День"
+  const energyData =
+    energyTab === "day" ? stats.energyChartData : stats.monthEnergyData;
+  const xLabel = energyTab === "day" ? "Година" : "День";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      {/* Дата даних */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: C.dim }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" strokeLinecap="round" />
+        </svg>
+        Дані за{" "}
+        <strong style={{ color: C.muted }}>
+          {new Date(stats.dataDate).toLocaleDateString("uk-UA", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}
+        </strong>
+        <span style={{ marginLeft: "4px", padding: "2px 8px", borderRadius: "4px", background: "rgba(234,179,8,0.12)", color: C.yellow, fontSize: "11px" }}>
+          не в реальному часі
+        </span>
+      </div>
 
       {/* KPI row */}
       <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
-        <KpiCard label="Вироблено сьогодні" value={stats.yieldToday.toFixed(2)} unit="кВт·год" icon={
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill={C.green} />
-          </svg>
-        } />
-        <KpiCard label="Отримано з мережі сьогодні" value={stats.supplyFromGrid.toFixed(2)} unit="кВт·год" icon={
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2">
-            <path d="M12 2v20M2 12h20" strokeLinecap="round" />
-          </svg>
-        } />
-        <KpiCard label="Загальне вироблення" value={stats.totalYield.toFixed(2)} unit="МВт·год" icon={
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        } />
-        <KpiCard label="Дохід сьогодні" value={stats.revenueToday.toFixed(2)} unit="₪" icon={
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2">
-            <line x1="12" y1="1" x2="12" y2="23" strokeLinecap="round" />
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" strokeLinecap="round" />
-          </svg>
-        } />
+        <KpiCard
+          label="Вироблено сьогодні"
+          value={stats.yieldToday.toFixed(2)}
+          unit="кВт·год"
+          icon={
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <polygon
+                points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"
+                fill={C.green}
+              />
+            </svg>
+          }
+        />
+        <KpiCard
+          label="Отримано з мережі сьогодні"
+          value={stats.supplyFromGrid.toFixed(2)}
+          unit="кВт·год"
+          icon={
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={C.green}
+              strokeWidth="2"
+            >
+              <path d="M12 2v20M2 12h20" strokeLinecap="round" />
+            </svg>
+          }
+        />
+        <KpiCard
+          label="Загальне вироблення"
+          value={stats.totalYield.toFixed(2)}
+          unit="МВт·год"
+          icon={
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={C.green}
+              strokeWidth="2"
+            >
+              <polyline
+                points="22 12 18 12 15 21 9 3 6 12 2 12"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          }
+        />
+        <KpiCard
+          label="Дохід сьогодні"
+          value={stats.revenueToday.toFixed(2)}
+          unit="₪"
+          icon={
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={C.green}
+              strokeWidth="2"
+            >
+              <line x1="12" y1="1" x2="12" y2="23" strokeLinecap="round" />
+              <path
+                d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+                strokeLinecap="round"
+              />
+            </svg>
+          }
+        />
       </div>
 
-      {/* Alerts */}
-      <AlertsBar isMobile={isMobile} />
-
       {/* Power flow + Energy chart */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "1fr 1.8fr",
-        gap: "16px",
-      }}>
-        <PowerFlow pv={stats.pvPower} load={stats.loadPower} grid={stats.gridPower} />
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1.8fr",
+          gap: "16px",
+        }}
+      >
+        <PowerFlow
+          pv={stats.pvPower}
+          load={stats.loadPower}
+          grid={stats.gridPower}
+        />
 
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
-            <span style={{ fontSize: "14px", fontWeight: 600, color: C.text }}>Energy Trend</span>
-            <div style={{ display: "flex", gap: "4px", background: "var(--c-bg)", borderRadius: "8px", padding: "3px" }}>
-              <TabBtn active={energyTab === "day"} onClick={() => setEnergyTab("day")}>День</TabBtn>
-              <TabBtn active={energyTab === "month"} onClick={() => setEnergyTab("month")}>Місяць</TabBtn>
+        <div
+          style={{
+            background: C.card,
+            border: `1px solid ${C.border}`,
+            borderRadius: "12px",
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "16px",
+              flexWrap: "wrap",
+              gap: "8px",
+            }}
+          >
+            <span style={{ fontSize: "14px", fontWeight: 600, color: C.text }}>
+              Тренд енергії
+            </span>
+            <div
+              style={{
+                display: "flex",
+                gap: "4px",
+                background: "var(--c-bg)",
+                borderRadius: "8px",
+                padding: "3px",
+              }}
+            >
+              <TabBtn
+                active={energyTab === "day"}
+                onClick={() => setEnergyTab("day")}
+              >
+                День
+              </TabBtn>
+              <TabBtn
+                active={energyTab === "month"}
+                onClick={() => setEnergyTab("month")}
+              >
+                Місяць
+              </TabBtn>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={energyData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+            <LineChart
+              data={energyData}
+              margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#1e2535" />
-              <XAxis dataKey="time" tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={{ stroke: C.border }} label={{ value: xLabel, position: "insideBottomRight", offset: -4, fill: C.dim, fontSize: 11 }} />
-              <YAxis tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={false} unit=" kWh" />
-              <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(1)} kWh`]} />
-              <Legend wrapperStyle={{ fontSize: "12px", color: C.muted, paddingTop: "8px" }} />
-              <Line type="monotone" dataKey="pvOutput" name="PV output" stroke={C.green} dot={false} strokeWidth={2} />
-              <Line type="monotone" dataKey="gridPower" name="Power from grid" stroke={C.muted} dot={false} strokeWidth={1.5} />
-              <Line type="monotone" dataKey="consumption" name="Consumed" stroke={C.orange} dot={false} strokeWidth={1.5} />
+              <XAxis
+                dataKey="time"
+                tick={{ fill: C.dim, fontSize: 11 }}
+                tickLine={false}
+                axisLine={{ stroke: C.border }}
+                label={{
+                  value: xLabel,
+                  position: "insideBottomRight",
+                  offset: -4,
+                  fill: C.dim,
+                  fontSize: 11,
+                }}
+              />
+              <YAxis
+                tick={{ fill: C.dim, fontSize: 11 }}
+                tickLine={false}
+                axisLine={false}
+                unit=" kWh"
+              />
+              <Tooltip
+                {...tooltipStyle}
+                formatter={(v) => [`${Number(v).toFixed(1)} kWh`]}
+              />
+              <Legend
+                wrapperStyle={{
+                  fontSize: "12px",
+                  color: C.muted,
+                  paddingTop: "8px",
+                }}
+              />
+              <Line
+                type="monotone"
+                dataKey="pvOutput"
+                name="Сонячна генерація"
+                stroke={C.green}
+                dot={false}
+                strokeWidth={2}
+              />
+              <Line
+                type="monotone"
+                dataKey="gridPower"
+                name="Імпорт з мережі"
+                stroke={C.muted}
+                dot={false}
+                strokeWidth={1.5}
+              />
+              <Line
+                type="monotone"
+                dataKey="consumption"
+                name="Споживання"
+                stroke={C.orange}
+                dot={false}
+                strokeWidth={1.5}
+              />
+              <Line
+                type="monotone"
+                dataKey="export"
+                name="Експорт"
+                stroke={C.blue}
+                dot={false}
+                strokeWidth={1.5}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Revenue chart + Environmental benefits */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: isMobile ? "1fr" : "1.8fr 1fr",
-        gap: "16px",
-      }}>
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-            <span style={{ fontSize: "14px", fontWeight: 600, color: C.text }}>Revenue Trend</span>
-            <div style={{ background: "var(--c-bg)", borderRadius: "8px", padding: "3px" }}>
-              <TabBtn active onClick={() => {}}>Місяць</TabBtn>
+      {/* Revenue chart */}
+      <div
+        style={{
+          background: C.card,
+          border: `1px solid ${C.border}`,
+          borderRadius: "12px",
+          padding: "20px",
+        }}
+      >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "4px",
+            }}
+          >
+            <span style={{ fontSize: "14px", fontWeight: 600, color: C.text }}>
+             Дохід
+            </span>
+            <div
+              style={{
+                background: "var(--c-bg)",
+                borderRadius: "8px",
+                padding: "3px",
+              }}
+            >
+              <TabBtn active onClick={() => {}}>
+                Місяць
+              </TabBtn>
             </div>
           </div>
-          <div style={{ fontSize: "13px", color: C.muted, marginBottom: "12px" }}>
-            Total revenue <span style={{ fontWeight: 700, color: C.text }}>
-              {stats.revenueChartData.reduce((s, r) => s + r.revenue, 0).toFixed(2)} ₪
+          <div
+            style={{ fontSize: "13px", color: C.muted, marginBottom: "12px" }}
+          >
+            Загальний дохід{" "}
+            <span style={{ fontWeight: 700, color: C.text }}>
+              {stats.revenueChartData
+                .reduce((s, r) => s + r.revenue, 0)
+                .toFixed(2)}{" "}
+            грн
             </span>
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={stats.revenueChartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e2535" vertical={false} />
-              <XAxis dataKey="day" tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={{ stroke: C.border }} />
-              <YAxis tick={{ fill: C.dim, fontSize: 11 }} tickLine={false} axisLine={false} unit=" ₪" />
-              <Tooltip {...tooltipStyle} formatter={(v) => [`${Number(v).toFixed(2)} ₪`]} />
-              <Bar dataKey="revenue" name="Revenue" fill={C.yellow} radius={[3, 3, 0, 0]} />
+            <BarChart
+              data={stats.revenueChartData}
+              margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#1e2535"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="day"
+                tick={{ fill: C.dim, fontSize: 11 }}
+                tickLine={false}
+                axisLine={{ stroke: C.border }}
+              />
+              <YAxis
+                tick={{ fill: C.dim, fontSize: 11 }}
+                tickLine={false}
+                axisLine={false}
+                unit=" ₪"
+                domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
+              />
+              <Tooltip
+                {...tooltipStyle}
+                formatter={(v) => [`${Number(v).toFixed(2)} ₪`]}
+              />
+              <Bar
+                dataKey="revenue"
+                name="Revenue"
+                fill={C.yellow}
+                radius={[3, 3, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Environmental Benefits */}
-        <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" }}>
-          <div style={{ fontSize: "14px", fontWeight: 600, color: C.text, marginBottom: "20px" }}>
-            Environmental Benefits
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-              <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "rgba(34,197,94,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="1.8">
-                  <path d="M14 6l1 2H5v13H3V8h2V5h8l1 1z" /><path d="M20 8l1 13H7V8" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <div>
-                <div style={{ fontSize: "20px", fontWeight: 700, color: C.text }}>{stats.coalSaved.toFixed(2)}</div>
-                <div style={{ fontSize: "12px", color: C.dim }}>тонн вугілля заощаджено</div>
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-              <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "rgba(34,197,94,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="1.8">
-                  <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z" /><path d="M12 6v6l4 2" strokeLinecap="round" />
-                </svg>
-              </div>
-              <div>
-                <div style={{ fontSize: "20px", fontWeight: 700, color: C.text }}>{stats.co2Avoided.toFixed(2)}</div>
-                <div style={{ fontSize: "12px", color: C.dim }}>тонн CO₂ скорочено</div>
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-              <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "rgba(34,197,94,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="1.8">
-                  <path d="M12 22V13M12 13C12 7 7 5 3 6c0 5 4 8 9 7zM12 13c0-6 5-8 9-7-1 5-4 8-9 7z" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <div>
-                <div style={{ fontSize: "20px", fontWeight: 700, color: C.text }}>{stats.treesPlanted}</div>
-                <div style={{ fontSize: "12px", color: C.dim }}>еквівалент дерев посаджено</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
-  )
+  );
 }
