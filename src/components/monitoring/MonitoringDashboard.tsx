@@ -186,7 +186,7 @@ function PowerFlow({ pv, load, grid }: { pv: number; load: number; grid: number 
           {Math.abs(grid).toFixed(2)} kW
         </text>
         <text x="80" y="232" textAnchor="middle" fontSize="9" fill={C.dim}>
-          {importing ? "Імпорт" : exporting ? "Експорт" : "Мережа"}
+          {importing ? "Імпорт з мережі" : exporting ? "Експорт з мережі" : "Мережа"}
         </text>
 
         {/* ══ PV node (bottom right) — сонячна панель ══════════════════ */}
@@ -204,7 +204,7 @@ function PowerFlow({ pv, load, grid }: { pv: number; load: number; grid: number 
           fill={pvActive ? C.green : C.text}>
           {pv.toFixed(2)} kW
         </text>
-        <text x="280" y="230" textAnchor="middle" fontSize="9" fill={C.dim}>PV</text>
+        <text x="280" y="230" textAnchor="middle" fontSize="9" fill={C.dim}>Сонячна генерація</text>
 
       </svg>
     </div>
@@ -424,7 +424,7 @@ export function MonitoringDashboard() {
             }}
           >
             <span style={{ fontSize: "14px", fontWeight: 600, color: C.text }}>
-              Energy Trend
+              Тренд енергії
             </span>
             <div
               style={{
@@ -488,7 +488,7 @@ export function MonitoringDashboard() {
               <Line
                 type="monotone"
                 dataKey="pvOutput"
-                name="PV output"
+                name="Сонячна генерація"
                 stroke={C.green}
                 dot={false}
                 strokeWidth={2}
@@ -496,7 +496,7 @@ export function MonitoringDashboard() {
               <Line
                 type="monotone"
                 dataKey="gridPower"
-                name="Power from grid"
+                name="Імпорт з мережі"
                 stroke={C.muted}
                 dot={false}
                 strokeWidth={1.5}
@@ -504,7 +504,7 @@ export function MonitoringDashboard() {
               <Line
                 type="monotone"
                 dataKey="consumption"
-                name="Consumed"
+                name="Споживання"
                 stroke={C.orange}
                 dot={false}
                 strokeWidth={1.5}
@@ -514,22 +514,15 @@ export function MonitoringDashboard() {
         </div>
       </div>
 
-      {/* Revenue chart + Environmental benefits */}
+      {/* Revenue chart */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: isMobile ? "1fr" : "1.8fr 1fr",
-          gap: "16px",
+          background: C.card,
+          border: `1px solid ${C.border}`,
+          borderRadius: "12px",
+          padding: "20px",
         }}
       >
-        <div
-          style={{
-            background: C.card,
-            border: `1px solid ${C.border}`,
-            borderRadius: "12px",
-            padding: "20px",
-          }}
-        >
           <div
             style={{
               display: "flex",
@@ -556,12 +549,12 @@ export function MonitoringDashboard() {
           <div
             style={{ fontSize: "13px", color: C.muted, marginBottom: "12px" }}
           >
-            Total revenue{" "}
+            Загальний дохід{" "}
             <span style={{ fontWeight: 700, color: C.text }}>
               {stats.revenueChartData
                 .reduce((s, r) => s + r.revenue, 0)
                 .toFixed(2)}{" "}
-              ₪
+            грн
             </span>
           </div>
           <ResponsiveContainer width="100%" height={180}>
@@ -600,142 +593,6 @@ export function MonitoringDashboard() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-
-        {/* Environmental Benefits */}
-        <div
-          style={{
-            background: C.card,
-            border: `1px solid ${C.border}`,
-            borderRadius: "12px",
-            padding: "20px",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "14px",
-              fontWeight: 600,
-              color: C.text,
-              marginBottom: "20px",
-            }}
-          >
-            Environmental Benefits
-          </div>
-          <div
-            style={{ display: "flex", flexDirection: "column", gap: "20px" }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-              <div
-                style={{
-                  width: "40px",
-                  height: "40px",
-                  borderRadius: "10px",
-                  background: "rgba(34,197,94,0.1)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke={C.green}
-                  strokeWidth="1.8"
-                >
-                  <path d="M14 6l1 2H5v13H3V8h2V5h8l1 1z" />
-                  <path d="M20 8l1 13H7V8" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <div>
-                <div
-                  style={{ fontSize: "20px", fontWeight: 700, color: C.text }}
-                >
-                  {stats.coalSaved.toFixed(2)}
-                </div>
-                <div style={{ fontSize: "12px", color: C.dim }}>
-                  тонн вугілля заощаджено
-                </div>
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-              <div
-                style={{
-                  width: "40px",
-                  height: "40px",
-                  borderRadius: "10px",
-                  background: "rgba(34,197,94,0.1)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke={C.green}
-                  strokeWidth="1.8"
-                >
-                  <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z" />
-                  <path d="M12 6v6l4 2" strokeLinecap="round" />
-                </svg>
-              </div>
-              <div>
-                <div
-                  style={{ fontSize: "20px", fontWeight: 700, color: C.text }}
-                >
-                  {stats.co2Avoided.toFixed(2)}
-                </div>
-                <div style={{ fontSize: "12px", color: C.dim }}>
-                  тонн CO₂ скорочено
-                </div>
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-              <div
-                style={{
-                  width: "40px",
-                  height: "40px",
-                  borderRadius: "10px",
-                  background: "rgba(34,197,94,0.1)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke={C.green}
-                  strokeWidth="1.8"
-                >
-                  <path
-                    d="M12 22V13M12 13C12 7 7 5 3 6c0 5 4 8 9 7zM12 13c0-6 5-8 9-7-1 5-4 8-9 7z"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-              <div>
-                <div
-                  style={{ fontSize: "20px", fontWeight: 700, color: C.text }}
-                >
-                  {stats.treesPlanted}
-                </div>
-                <div style={{ fontSize: "12px", color: C.dim }}>
-                  еквівалент дерев посаджено
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
