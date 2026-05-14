@@ -13,7 +13,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import type { LiveStats } from "@/lib/inverter-mock";
+import type { LiveStats, RdnChartPoint } from "@/lib/inverter-mock";
 
 const C = {
   bg: "var(--c-bg)",
@@ -645,6 +645,46 @@ export function MonitoringDashboard() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+
+      {/* RDN prices chart */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" }}>
+        <div style={{ marginBottom: "4px", fontSize: "14px", fontWeight: 600, color: C.text }}>Ціни РДН</div>
+        <div style={{ fontSize: "13px", color: C.muted, marginBottom: "12px" }}>
+          Погодинна ціна <span style={{ fontWeight: 700, color: C.text }}>грн/МВт·год</span>
+        </div>
+        <RdnChart data={stats.rdnDayData} />
+      </div>
+
     </div>
   );
+}
+
+function RdnChart({ data }: { data: RdnChartPoint[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={180}>
+      <BarChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#1e2535" vertical={false} />
+        <XAxis
+          dataKey="time"
+          tick={{ fill: "var(--c-dim)", fontSize: 11 }}
+          tickLine={false}
+          axisLine={{ stroke: "var(--c-border)" }}
+          interval={2}
+        />
+        <YAxis
+          tick={{ fill: "var(--c-dim)", fontSize: 11 }}
+          tickLine={false}
+          axisLine={false}
+          unit=" ₴"
+          domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
+        />
+        <Tooltip
+          contentStyle={{ background: "var(--c-bg)", border: "1px solid var(--c-border)", borderRadius: "8px", fontSize: "12px" }}
+          labelStyle={{ color: "var(--c-muted)" }}
+          formatter={(v) => [`${Number(v).toFixed(0)} грн/МВт·год`]}
+        />
+        <Bar dataKey="price" name="Ціна РДН" fill="#a855f7" radius={[3, 3, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
 }

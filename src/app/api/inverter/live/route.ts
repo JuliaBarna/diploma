@@ -116,6 +116,26 @@ export async function GET(request: NextRequest) {
     revenue: r2(d.rev),
   }))
 
+  // ── Графік цін РДН ────────────────────────────────────────────────────────
+  // День: погодинні ціни в порядку ринкової доби (01:00–00:00)
+  const rdnDayData = Array.from({ length: 24 }, (_, i) => {
+    const h = (i + 1) % 24  // 1,2,...,23,0
+    return { time: `${String(h).padStart(2, "0")}:00`, price: r2(dayRdnMap.get(h) ?? 0) }
+  })
+
+  // Місяць: середня ціна за кожен день
+  const rdnDayPriceMap = new Map<string, { sum: number; count: number }>()
+  for (const r of monthRdnRows) {
+    const day = r.date.toISOString().slice(8, 10)
+    const d = rdnDayPriceMap.get(day) ?? { sum: 0, count: 0 }
+    d.sum += r.price; d.count++
+    rdnDayPriceMap.set(day, d)
+  }
+  const rdnMonthData = Array.from(rdnDayPriceMap.entries()).map(([day, d]) => ({
+    time:  day,
+    price: r2(d.sum / d.count),
+  }))
+
   return NextResponse.json({
     pvPower,
     gridPower,
@@ -128,6 +148,8 @@ export async function GET(request: NextRequest) {
     energyChartData,
     monthEnergyData,
     revenueChartData,
+    rdnDayData,
+    rdnMonthData,
     coalSaved:    r2(totalYield * 0.4),
     co2Avoided:   r2(totalYield * 0.475),
     treesPlanted: Math.round(totalYield * 0.65),

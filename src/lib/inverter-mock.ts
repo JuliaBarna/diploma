@@ -11,6 +11,11 @@ export interface RevenueChartPoint {
   revenue: number
 }
 
+export interface RdnChartPoint {
+  time: string
+  price: number
+}
+
 export interface LiveStats {
   pvPower: number
   gridPower: number
@@ -23,6 +28,8 @@ export interface LiveStats {
   energyChartData: EnergyChartPoint[]
   monthEnergyData: EnergyChartPoint[]
   revenueChartData: RevenueChartPoint[]
+  rdnDayData: RdnChartPoint[]
+  rdnMonthData: RdnChartPoint[]
   coalSaved: number
   co2Avoided: number
   treesPlanted: number

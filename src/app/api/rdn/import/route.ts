@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     for (let col = 1; col <= 24; col++) {
       const price = Math.round(n(row[col]))
-      records.push({ date, hour: col - 1, price })
+      records.push({ date, hour: col % 24, price })  // col 1→hour 1, col 24→hour 0
     }
   }
 
