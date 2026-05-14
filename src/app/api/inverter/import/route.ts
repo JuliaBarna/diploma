@@ -5,8 +5,10 @@ import { prisma } from "@/lib/prisma"
 export const dynamic = "force-dynamic"
 
 function parseTimestamp(raw: unknown): Date | null {
-  if (!raw) return null
+  if (raw == null || raw === "") return null
+  if (raw instanceof Date) return isNaN(raw.getTime()) ? null : raw
   const s = String(raw).replace(/\s*DST\s*$/i, "").trim()
+  if (!s || s === "0") return null
   const d = new Date(s.replace(" ", "T") + "Z")
   return isNaN(d.getTime()) ? null : d
 }
@@ -36,7 +38,7 @@ export async function POST(req: NextRequest) {
   const buffer = await getBuffer(req)
   if (!buffer) return NextResponse.json({ error: "Файл не знайдено" }, { status: 400 })
 
-  const wb = XLSX.read(buffer, { type: "array" })
+  const wb = XLSX.read(buffer, { type: "array", cellDates: true })
   const ws = wb.Sheets[wb.SheetNames[0]]
   const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "" })
 
@@ -48,12 +50,31 @@ export async function POST(req: NextRequest) {
     lossExportKwh: number; lossExportEur: number; charge: number; discharge: number; revenue: number
   }
 
-  const dataRows = rows.slice(2).filter(r => Array.isArray(r) && r[0])
+  // The report always has 24 hourly rows (00:00–23:00) right after the 2 header rows.
+  // Take exactly 24 raw rows (including possibly corrupted/empty ones).
+  const rawDataRows = rows.slice(2, 26)
 
-  const records = dataRows.map((r): Record | null => {
-    const row = r as unknown[]
-    const timestamp = parseTimestamp(row[0])
-    if (!timestamp) return null
+  // Find the first row with a parseable timestamp to use as an anchor.
+  // SheetJS "Bad uncompressed size" can corrupt shared-strings entries (text cells like timestamps)
+  // while leaving inline numeric cells (import/export kWh) intact.
+  let anchorTs: Date | null = null
+  let anchorRawIdx = -1
+  for (let i = 0; i < rawDataRows.length; i++) {
+    const ts = parseTimestamp((rawDataRows[i] as unknown[])[0])
+    if (ts) { anchorTs = ts; anchorRawIdx = i; break }
+  }
+
+  if (!anchorTs) {
+    return NextResponse.json({ error: "Не знайдено рядків даних" }, { status: 400 })
+  }
+
+  const records = rawDataRows.map((r, idx): Record => {
+    const row = Array.isArray(r) ? (r as unknown[]) : []
+    let timestamp = parseTimestamp(row[0])
+    if (!timestamp) {
+      // Position-based inference: each row is exactly 1 hour apart from the anchor
+      timestamp = new Date(anchorTs!.getTime() + (idx - anchorRawIdx) * 3_600_000)
+    }
     return {
       timestamp,
       statisticalPeriod: timestamp.toISOString().slice(11, 16),
@@ -70,11 +91,7 @@ export async function POST(req: NextRequest) {
       discharge:         n(row[11]),
       revenue:           0,
     }
-  }).filter((r): r is Record => r !== null)
-
-  if (records.length === 0) {
-    return NextResponse.json({ error: "Не знайдено рядків даних" }, { status: 400 })
-  }
+  })
 
   let imported = 0
   const BATCH = 50

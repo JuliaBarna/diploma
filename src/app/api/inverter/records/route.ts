@@ -28,8 +28,7 @@ export async function GET(req: NextRequest) {
   const rdnMap = new Map(rdnRows.map(r => [r.hour, r.price]))
 
   const result = records.map((r) => {
-    const hour = r.timestamp.getUTCHours()
-    const rdnPrice = rdnMap.get(hour) ?? 0   // грн/МВт·год
+    const rdnPrice = rdnMap.get(r.timestamp.getUTCHours()) ?? 0
     return {
       statisticalPeriod: r.statisticalPeriod,
       pvYield:     r.pvYield,
