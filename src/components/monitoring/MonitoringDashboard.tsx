@@ -46,12 +46,16 @@ function KpiCard({
   value,
   unit,
   icon,
+  iconBg = "rgba(34,197,94,0.12)",
 }: {
   label: string;
   value: string;
   unit: string;
   icon: React.ReactNode;
+  iconBg?: string;
 }) {
+  const isMobile = useIsMobile();
+  const iconBox = isMobile ? 28 : 36;
   return (
     <div
       style={{
@@ -63,22 +67,9 @@ function KpiCard({
         minWidth: "140px",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <div
-            style={{
-              fontSize: "24px",
-              fontWeight: 700,
-              color: C.text,
-              lineHeight: 1,
-            }}
-          >
+          <div style={{ fontSize: "24px", fontWeight: 700, color: C.text, lineHeight: 1 }}>
             {value}
           </div>
           <div style={{ fontSize: "12px", color: C.muted, marginTop: "2px" }}>
@@ -87,13 +78,10 @@ function KpiCard({
         </div>
         <div
           style={{
-            width: "36px",
-            height: "36px",
-            borderRadius: "8px",
-            background: "rgba(34,197,94,0.12)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            width: `${iconBox}px`, height: `${iconBox}px`, borderRadius: "8px",
+            background: iconBg,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0,
           }}
         >
           {icon}
@@ -389,6 +377,17 @@ export function MonitoringDashboard() {
               strokeWidth="2"
             >
               <path d="M12 2v20M2 12h20" strokeLinecap="round" />
+            </svg>
+          }
+        />
+        <KpiCard
+          label="Експортовано в мережу сьогодні"
+          value={stats.exportToday.toFixed(2)}
+          unit="кВт·год"
+          icon={
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 19V5" />
+              <path d="M5 12l7-7 7 7" />
             </svg>
           }
         />

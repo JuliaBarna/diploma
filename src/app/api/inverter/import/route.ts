@@ -9,7 +9,6 @@ function n(v: unknown): number {
   return isNaN(x) ? 0 : x
 }
 
-// Extract UTC hour (0–23) from "YYYY-MM-DD HH:mm:ss DST" string
 function parseHour(raw: unknown): number | null {
   const m = String(raw).match(/[T ](\d{2}):\d{2}:\d{2}/)
   if (!m) return null
@@ -17,15 +16,16 @@ function parseHour(raw: unknown): number | null {
   return h >= 0 && h <= 23 ? h : null
 }
 
+function parseDate(raw: unknown): string | null {
+  const m = String(raw).match(/(\d{4}-\d{2}-\d{2})/)
+  return m ? m[1] : null
+}
+
 export async function POST(req: NextRequest) {
   const form = await req.formData()
   const file = form.get("file") as File | null
-  const dateParam = form.get("date") as string | null
 
   if (!file) return NextResponse.json({ error: "Файл не знайдено" }, { status: 400 })
-  if (!dateParam || !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
-    return NextResponse.json({ error: "Вкажіть дату звіту" }, { status: 400 })
-  }
 
   const buffer = new Uint8Array(await file.arrayBuffer())
   const wb = XLSX.read(buffer, { type: "array", cellDates: true })
@@ -44,10 +44,29 @@ export async function POST(req: NextRequest) {
 
   // Row 0 = report header, row 1 = column names, data from row 2.
   // Timestamps in column A may be empty for early rows (SharedStrings corruption);
-  // we recover the hour via anchor-relative index (see below).
+  // we recover the hour via anchor-relative index and the date from the first readable cell.
   const rawDataRows = rows.slice(2, 26)
   if (rawDataRows.length === 0) {
     return NextResponse.json({ error: "Не знайдено рядків даних" }, { status: 400 })
+  }
+
+  // Auto-detect date and anchor hour from the first readable timestamp in column A
+  let dateParam = (form.get("date") as string | null) ?? null
+  let anchorHour = -1
+  let anchorIdx = -1
+  for (let i = 0; i < rawDataRows.length; i++) {
+    const row = Array.isArray(rawDataRows[i]) ? (rawDataRows[i] as unknown[]) : []
+    const h = parseHour(row[0])
+    if (h !== null) {
+      if (!dateParam) dateParam = parseDate(row[0])
+      anchorHour = h
+      anchorIdx = i
+      break
+    }
+  }
+
+  if (!dateParam || !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+    return NextResponse.json({ error: "Не вдалось визначити дату звіту з файлу" }, { status: 400 })
   }
 
   const baseMidnight = new Date(dateParam + "T00:00:00.000Z")
@@ -59,22 +78,11 @@ export async function POST(req: NextRequest) {
     lossExportKwh: number; lossExportEur: number; charge: number; discharge: number; revenue: number
   }
 
-  // Find anchor: first row with a parseable hour, used to infer hours for rows
-  // whose column A is empty due to SharedStrings corruption.
-  let anchorHour = -1
-  let anchorIdx = -1
-  for (let i = 0; i < rawDataRows.length; i++) {
-    const row = Array.isArray(rawDataRows[i]) ? (rawDataRows[i] as unknown[]) : []
-    const h = parseHour(row[0])
-    if (h !== null) { anchorHour = h; anchorIdx = i; break }
-  }
-
   const recordsByHour = new Map<number, Record>()
 
   for (let i = 0; i < rawDataRows.length; i++) {
     const row = Array.isArray(rawDataRows[i]) ? (rawDataRows[i] as unknown[]) : []
     let hour = parseHour(row[0])
-    // Recover hour for rows with corrupted/missing timestamp using the anchor
     if (hour === null && anchorIdx >= 0) {
       hour = anchorHour - (anchorIdx - i)
       if (hour < 0 || hour > 23) continue

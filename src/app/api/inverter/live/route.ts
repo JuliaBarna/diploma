@@ -41,18 +41,24 @@ export async function GET(request: NextRequest) {
 
   const dayRdnMap = new Map(dayRdnRows.map(r => [r.hour, r.price]))
 
-  const latest = dayRecords[dayRecords.length - 1]
-
   const yieldToday     = r2(dayRecords.reduce((s, r) => s + r.pvYield, 0))
   const supplyFromGrid = r2(dayRecords.reduce((s, r) => s + r.import,  0))
+  const exportToday    = r2(dayRecords.reduce((s, r) => s + r.export,  0))
   const revenueToday   = r2(dayRecords.reduce((s, r) => {
     const rdnPrice = dayRdnMap.get(r.timestamp.getUTCHours()) ?? 0
     return s + r.export * rdnPrice / 1000
   }, 0))
 
-  const pvPower   = r2(latest?.pvYield ?? 0)
-  const loadPower = r2(latest ? latest.pvYield + latest.import - latest.export : 0)
-  const gridPower = r2(latest ? latest.export - latest.import : 0)
+  // Power flow: use the record matching the current real-world hour to simulate
+  // live state for the selected date (if it's 15:00 now → show 15:00 of that day).
+  // Timestamps are stored as local EEST (UTC+3) treated as UTC, so match by local hour.
+  const currentHour = (new Date().getUTCHours() + 3) % 24
+  const hourRecord  = dayRecords.find(r => r.timestamp.getUTCHours() === currentHour)
+                   ?? dayRecords[dayRecords.length - 1]
+
+  const pvPower   = r2(hourRecord?.pvYield ?? 0)
+  const loadPower = r2(hourRecord ? hourRecord.pvYield + hourRecord.import - hourRecord.export : 0)
+  const gridPower = r2(hourRecord ? hourRecord.export - hourRecord.import : 0)
 
   // ── Загальне вироблення за весь час ────────────────────────────────────────
   const agg = await prisma.inverterRecord.aggregate({ _sum: { pvYield: true } })
@@ -116,6 +122,7 @@ export async function GET(request: NextRequest) {
     loadPower,
     yieldToday,
     supplyFromGrid,
+    exportToday,
     totalYield,
     revenueToday,
     energyChartData,
