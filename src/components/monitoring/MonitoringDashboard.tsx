@@ -13,7 +13,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import type { LiveStats } from "@/lib/inverter-mock";
+import type { LiveStats, RdnChartPoint } from "@/lib/inverter-mock";
 
 const C = {
   bg: "var(--c-bg)",
@@ -46,12 +46,16 @@ function KpiCard({
   value,
   unit,
   icon,
+  iconBg = "rgba(34,197,94,0.12)",
 }: {
   label: string;
   value: string;
   unit: string;
   icon: React.ReactNode;
+  iconBg?: string;
 }) {
+  const isMobile = useIsMobile();
+  const iconBox = isMobile ? 28 : 36;
   return (
     <div
       style={{
@@ -63,22 +67,9 @@ function KpiCard({
         minWidth: "140px",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <div
-            style={{
-              fontSize: "24px",
-              fontWeight: 700,
-              color: C.text,
-              lineHeight: 1,
-            }}
-          >
+          <div style={{ fontSize: "24px", fontWeight: 700, color: C.text, lineHeight: 1 }}>
             {value}
           </div>
           <div style={{ fontSize: "12px", color: C.muted, marginTop: "2px" }}>
@@ -87,13 +78,10 @@ function KpiCard({
         </div>
         <div
           style={{
-            width: "36px",
-            height: "36px",
-            borderRadius: "8px",
-            background: "rgba(34,197,94,0.12)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            width: `${iconBox}px`, height: `${iconBox}px`, borderRadius: "8px",
+            background: iconBg,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0,
           }}
         >
           {icon}
@@ -256,6 +244,7 @@ const tooltipStyle = {
 export function MonitoringDashboard() {
   const [stats, setStats] = useState<LiveStats | null>(null);
   const [energyTab, setEnergyTab] = useState<"day" | "month">("day");
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -263,7 +252,10 @@ export function MonitoringDashboard() {
 
     async function load() {
       try {
-        const res = await fetch("/api/inverter/live");
+        const url = selectedDate
+          ? `/api/inverter/live?date=${selectedDate}`
+          : "/api/inverter/live";
+        const res = await fetch(url);
         if (!cancelled) setStats(await res.json());
       } catch {
         /* ignore */
@@ -271,12 +263,12 @@ export function MonitoringDashboard() {
     }
 
     load();
-    const id = setInterval(load, 30_000);
+    const id = selectedDate ? undefined : setInterval(load, 30_000);
     return () => {
       cancelled = true;
-      clearInterval(id);
+      if (id !== undefined) clearInterval(id);
     };
-  }, []);
+  }, [selectedDate]);
 
   if (!stats) {
     return (
@@ -302,7 +294,7 @@ export function MonitoringDashboard() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       {/* Дата даних */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: C.dim }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: C.dim, flexWrap: "wrap" }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" strokeLinecap="round" />
         </svg>
@@ -313,6 +305,47 @@ export function MonitoringDashboard() {
         <span style={{ marginLeft: "4px", padding: "2px 8px", borderRadius: "4px", background: "rgba(234,179,8,0.12)", color: C.yellow, fontSize: "11px" }}>
           не в реальному часі
         </span>
+        {!stats.hasData && selectedDate && (
+          <span style={{ padding: "2px 8px", borderRadius: "4px", background: "rgba(239,68,68,0.12)", color: "#ef4444", fontSize: "11px" }}>
+            немає даних за цю дату
+          </span>
+        )}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginLeft: "4px" }}>
+          <input
+            type="date"
+            value={selectedDate || stats.dataDate}
+            onChange={e => setSelectedDate(e.target.value)}
+            style={{
+              background: C.card,
+              border: `1px solid ${C.border}`,
+              borderRadius: "8px",
+              padding: "4px 10px",
+              color: C.text,
+              fontSize: "13px",
+              outline: "none",
+              colorScheme: "light dark",
+              cursor: "pointer",
+            }}
+          />
+          {selectedDate && (
+            <button
+              onClick={() => setSelectedDate("")}
+              title="Показати останню дату"
+              style={{
+                background: "rgba(249,115,22,0.12)",
+                border: "none",
+                borderRadius: "6px",
+                color: C.orange,
+                fontSize: "11px",
+                padding: "4px 10px",
+                cursor: "pointer",
+                fontWeight: 500,
+              }}
+            >
+              остання
+            </button>
+          )}
+        </div>
       </div>
 
       {/* KPI row */}
@@ -344,6 +377,17 @@ export function MonitoringDashboard() {
               strokeWidth="2"
             >
               <path d="M12 2v20M2 12h20" strokeLinecap="round" />
+            </svg>
+          }
+        />
+        <KpiCard
+          label="Експортовано в мережу сьогодні"
+          value={stats.exportToday.toFixed(2)}
+          unit="кВт·год"
+          icon={
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={C.green} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 19V5" />
+              <path d="M5 12l7-7 7 7" />
             </svg>
           }
         />
@@ -601,6 +645,46 @@ export function MonitoringDashboard() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+
+      {/* RDN prices chart */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "20px" }}>
+        <div style={{ marginBottom: "4px", fontSize: "14px", fontWeight: 600, color: C.text }}>Ціни РДН</div>
+        <div style={{ fontSize: "13px", color: C.muted, marginBottom: "12px" }}>
+          Погодинна ціна <span style={{ fontWeight: 700, color: C.text }}>грн/МВт·год</span>
+        </div>
+        <RdnChart data={stats.rdnDayData} />
+      </div>
+
     </div>
   );
+}
+
+function RdnChart({ data }: { data: RdnChartPoint[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={180}>
+      <BarChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#1e2535" vertical={false} />
+        <XAxis
+          dataKey="time"
+          tick={{ fill: "var(--c-dim)", fontSize: 11 }}
+          tickLine={false}
+          axisLine={{ stroke: "var(--c-border)" }}
+          interval={2}
+        />
+        <YAxis
+          tick={{ fill: "var(--c-dim)", fontSize: 11 }}
+          tickLine={false}
+          axisLine={false}
+          unit=" ₴"
+          domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
+        />
+        <Tooltip
+          contentStyle={{ background: "var(--c-bg)", border: "1px solid var(--c-border)", borderRadius: "8px", fontSize: "12px" }}
+          labelStyle={{ color: "var(--c-muted)" }}
+          formatter={(v) => [`${Number(v).toFixed(0)} грн/МВт·год`]}
+        />
+        <Bar dataKey="price" name="Ціна РДН" fill="#a855f7" radius={[3, 3, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
 }

@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
   const totalExport        = records.reduce((s, r) => s + r.export, 0)
   const totalImport        = records.reduce((s, r) => s + r.import, 0)
   const totalRevenue       = records.reduce((s, r) => {
-    const date = r.timestamp.toISOString().slice(0, 10)
+    const date     = r.timestamp.toISOString().slice(0, 10)
     const rdnPrice = rdnMap.get(`${date}:${r.timestamp.getUTCHours()}`) ?? 0
     return s + r.export * rdnPrice / 1000
   }, 0)

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import type { LiveStats } from "@/lib/inverter-mock"
 
@@ -6,18 +6,23 @@ export const dynamic = "force-dynamic"
 
 function r2(n: number) { return Math.round(n * 100) / 100 }
 
-export async function GET() {
-  // Знаходимо останній запис у БД — беремо дані за ту добу
-  const lastRecord = await prisma.inverterRecord.findFirst({
-    orderBy: { timestamp: "desc" },
-    select: { timestamp: true },
-  })
+export async function GET(request: NextRequest) {
+  const dateParam = request.nextUrl.searchParams.get("date")
 
-  if (!lastRecord) {
-    return NextResponse.json({ error: "Немає даних в базі" }, { status: 404 })
+  let dataDate: string
+
+  if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+    dataDate = dateParam
+  } else {
+    const lastRecord = await prisma.inverterRecord.findFirst({
+      orderBy: { timestamp: "desc" },
+      select: { timestamp: true },
+    })
+    if (!lastRecord) {
+      return NextResponse.json({ error: "Немає даних в базі" }, { status: 404 })
+    }
+    dataDate = lastRecord.timestamp.toISOString().slice(0, 10)
   }
-
-  const dataDate   = lastRecord.timestamp.toISOString().slice(0, 10)
   const dayStart   = new Date(dataDate + "T00:00:00.000Z")
   const dayEnd     = new Date(dataDate + "T23:59:59.999Z")
   const monthStart = new Date(dataDate.slice(0, 7) + "-01T00:00:00.000Z")
@@ -36,18 +41,24 @@ export async function GET() {
 
   const dayRdnMap = new Map(dayRdnRows.map(r => [r.hour, r.price]))
 
-  const latest = dayRecords[dayRecords.length - 1]
-
   const yieldToday     = r2(dayRecords.reduce((s, r) => s + r.pvYield, 0))
   const supplyFromGrid = r2(dayRecords.reduce((s, r) => s + r.import,  0))
+  const exportToday    = r2(dayRecords.reduce((s, r) => s + r.export,  0))
   const revenueToday   = r2(dayRecords.reduce((s, r) => {
     const rdnPrice = dayRdnMap.get(r.timestamp.getUTCHours()) ?? 0
     return s + r.export * rdnPrice / 1000
   }, 0))
 
-  const pvPower   = r2(latest?.pvYield ?? 0)
-  const loadPower = r2(latest ? latest.pvYield + latest.import - latest.export : 0)
-  const gridPower = r2(latest ? latest.export - latest.import : 0)
+  // Power flow: use the record matching the current real-world hour to simulate
+  // live state for the selected date (if it's 15:00 now → show 15:00 of that day).
+  // Timestamps are stored as local EEST (UTC+3) treated as UTC, so match by local hour.
+  const currentHour = (new Date().getUTCHours() + 3) % 24
+  const hourRecord  = dayRecords.find(r => r.timestamp.getUTCHours() === currentHour)
+                   ?? dayRecords[dayRecords.length - 1]
+
+  const pvPower   = r2(hourRecord?.pvYield ?? 0)
+  const loadPower = r2(hourRecord ? hourRecord.pvYield + hourRecord.import - hourRecord.export : 0)
+  const gridPower = r2(hourRecord ? hourRecord.export - hourRecord.import : 0)
 
   // ── Загальне вироблення за весь час ────────────────────────────────────────
   const agg = await prisma.inverterRecord.aggregate({ _sum: { pvYield: true } })
@@ -105,20 +116,44 @@ export async function GET() {
     revenue: r2(d.rev),
   }))
 
+  // ── Графік цін РДН ────────────────────────────────────────────────────────
+  // День: погодинні ціни в порядку ринкової доби (01:00–00:00)
+  const rdnDayData = Array.from({ length: 24 }, (_, i) => {
+    const h = (i + 1) % 24  // 1,2,...,23,0
+    return { time: `${String(h).padStart(2, "0")}:00`, price: r2(dayRdnMap.get(h) ?? 0) }
+  })
+
+  // Місяць: середня ціна за кожен день
+  const rdnDayPriceMap = new Map<string, { sum: number; count: number }>()
+  for (const r of monthRdnRows) {
+    const day = r.date.toISOString().slice(8, 10)
+    const d = rdnDayPriceMap.get(day) ?? { sum: 0, count: 0 }
+    d.sum += r.price; d.count++
+    rdnDayPriceMap.set(day, d)
+  }
+  const rdnMonthData = Array.from(rdnDayPriceMap.entries()).map(([day, d]) => ({
+    time:  day,
+    price: r2(d.sum / d.count),
+  }))
+
   return NextResponse.json({
     pvPower,
     gridPower,
     loadPower,
     yieldToday,
     supplyFromGrid,
+    exportToday,
     totalYield,
     revenueToday,
     energyChartData,
     monthEnergyData,
     revenueChartData,
+    rdnDayData,
+    rdnMonthData,
     coalSaved:    r2(totalYield * 0.4),
     co2Avoided:   r2(totalYield * 0.475),
     treesPlanted: Math.round(totalYield * 0.65),
     dataDate,
+    hasData:      dayRecords.length > 0,
   } satisfies LiveStats)
 }
