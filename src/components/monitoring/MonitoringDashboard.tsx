@@ -256,6 +256,7 @@ const tooltipStyle = {
 export function MonitoringDashboard() {
   const [stats, setStats] = useState<LiveStats | null>(null);
   const [energyTab, setEnergyTab] = useState<"day" | "month">("day");
+  const [selectedDate, setSelectedDate] = useState<string>("");
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -263,7 +264,10 @@ export function MonitoringDashboard() {
 
     async function load() {
       try {
-        const res = await fetch("/api/inverter/live");
+        const url = selectedDate
+          ? `/api/inverter/live?date=${selectedDate}`
+          : "/api/inverter/live";
+        const res = await fetch(url);
         if (!cancelled) setStats(await res.json());
       } catch {
         /* ignore */
@@ -271,12 +275,12 @@ export function MonitoringDashboard() {
     }
 
     load();
-    const id = setInterval(load, 30_000);
+    const id = selectedDate ? undefined : setInterval(load, 30_000);
     return () => {
       cancelled = true;
-      clearInterval(id);
+      if (id !== undefined) clearInterval(id);
     };
-  }, []);
+  }, [selectedDate]);
 
   if (!stats) {
     return (
@@ -302,7 +306,7 @@ export function MonitoringDashboard() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       {/* Дата даних */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: C.dim }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: C.dim, flexWrap: "wrap" }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" strokeLinecap="round" />
         </svg>
@@ -313,6 +317,47 @@ export function MonitoringDashboard() {
         <span style={{ marginLeft: "4px", padding: "2px 8px", borderRadius: "4px", background: "rgba(234,179,8,0.12)", color: C.yellow, fontSize: "11px" }}>
           не в реальному часі
         </span>
+        {!stats.hasData && selectedDate && (
+          <span style={{ padding: "2px 8px", borderRadius: "4px", background: "rgba(239,68,68,0.12)", color: "#ef4444", fontSize: "11px" }}>
+            немає даних за цю дату
+          </span>
+        )}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginLeft: "4px" }}>
+          <input
+            type="date"
+            value={selectedDate || stats.dataDate}
+            onChange={e => setSelectedDate(e.target.value)}
+            style={{
+              background: C.card,
+              border: `1px solid ${C.border}`,
+              borderRadius: "8px",
+              padding: "4px 10px",
+              color: C.text,
+              fontSize: "13px",
+              outline: "none",
+              colorScheme: "light dark",
+              cursor: "pointer",
+            }}
+          />
+          {selectedDate && (
+            <button
+              onClick={() => setSelectedDate("")}
+              title="Показати останню дату"
+              style={{
+                background: "rgba(249,115,22,0.12)",
+                border: "none",
+                borderRadius: "6px",
+                color: C.orange,
+                fontSize: "11px",
+                padding: "4px 10px",
+                cursor: "pointer",
+                fontWeight: 500,
+              }}
+            >
+              остання
+            </button>
+          )}
+        </div>
       </div>
 
       {/* KPI row */}

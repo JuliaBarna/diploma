@@ -26,4 +26,5 @@ export interface LiveStats {
   co2Avoided: number
   treesPlanted: number
   dataDate: string
+  hasData: boolean
 }

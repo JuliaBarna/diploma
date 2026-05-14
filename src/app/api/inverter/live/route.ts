@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import type { LiveStats } from "@/lib/inverter-mock"
 
@@ -6,18 +6,23 @@ export const dynamic = "force-dynamic"
 
 function r2(n: number) { return Math.round(n * 100) / 100 }
 
-export async function GET() {
-  // Знаходимо останній запис у БД — беремо дані за ту добу
-  const lastRecord = await prisma.inverterRecord.findFirst({
-    orderBy: { timestamp: "desc" },
-    select: { timestamp: true },
-  })
+export async function GET(request: NextRequest) {
+  const dateParam = request.nextUrl.searchParams.get("date")
 
-  if (!lastRecord) {
-    return NextResponse.json({ error: "Немає даних в базі" }, { status: 404 })
+  let dataDate: string
+
+  if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+    dataDate = dateParam
+  } else {
+    const lastRecord = await prisma.inverterRecord.findFirst({
+      orderBy: { timestamp: "desc" },
+      select: { timestamp: true },
+    })
+    if (!lastRecord) {
+      return NextResponse.json({ error: "Немає даних в базі" }, { status: 404 })
+    }
+    dataDate = lastRecord.timestamp.toISOString().slice(0, 10)
   }
-
-  const dataDate   = lastRecord.timestamp.toISOString().slice(0, 10)
   const dayStart   = new Date(dataDate + "T00:00:00.000Z")
   const dayEnd     = new Date(dataDate + "T23:59:59.999Z")
   const monthStart = new Date(dataDate.slice(0, 7) + "-01T00:00:00.000Z")
@@ -120,5 +125,6 @@ export async function GET() {
     co2Avoided:   r2(totalYield * 0.475),
     treesPlanted: Math.round(totalYield * 0.65),
     dataDate,
+    hasData:      dayRecords.length > 0,
   } satisfies LiveStats)
 }
