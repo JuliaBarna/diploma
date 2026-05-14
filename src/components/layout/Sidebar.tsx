@@ -22,10 +22,6 @@ const NAV_ITEMS = [
     href: "/battery", label: "Акумулятори",
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="16" height="10" rx="2" /><path d="M22 11v2" strokeLinecap="round" /><path d="M6 11v2M10 11v2" strokeLinecap="round" /></svg>,
   },
-  {
-    href: "/recommendations", label: "Рекомендації",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" strokeLinecap="round" /></svg>,
-  },
   
 ];
 

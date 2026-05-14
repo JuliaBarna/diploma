@@ -21,6 +21,7 @@ interface Props {
 
 export function InverterImportModal({ onClose, onImported }: Props) {
   const [file, setFile]       = useState<File | null>(null)
+  const [date, setDate]       = useState<string>("")
   const [status, setStatus]   = useState<"idle" | "loading" | "ok" | "err">("idle")
   const [message, setMessage] = useState("")
   const fileRef = useRef<HTMLInputElement>(null)
@@ -33,17 +34,18 @@ export function InverterImportModal({ onClose, onImported }: Props) {
   }
 
   async function handleImport() {
-    if (!file) return
+    if (!file || !date) return
     setStatus("loading")
     try {
       const form = new FormData()
       form.append("file", file)
+      form.append("date", date)
       const res = await fetch("/api/inverter/import", { method: "POST", body: form })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? "Помилка сервера")
       setStatus("ok")
       setMessage(`Імпортовано ${data.imported} записів`)
-      onImported(data.imported, data.date)
+      onImported(data.imported, date)
     } catch (e) {
       setStatus("err")
       setMessage(e instanceof Error ? e.message : "Невідома помилка")
@@ -67,6 +69,20 @@ export function InverterImportModal({ onClose, onImported }: Props) {
 
         <div style={{ fontSize: "13px", color: C.dim, lineHeight: 1.6 }}>
           Завантажте Excel-файл статистичного звіту за часом.
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <label style={{ fontSize: "12px", color: C.muted, fontWeight: 500 }}>Дата звіту</label>
+          <input
+            type="date"
+            value={date}
+            onChange={e => { setDate(e.target.value); setStatus("idle"); setMessage("") }}
+            style={{
+              background: C.bg, border: `1px solid ${C.border}`, borderRadius: "8px",
+              padding: "10px 14px", color: date ? C.text : C.muted,
+              fontSize: "13px", outline: "none", colorScheme: "light dark", width: "100%", boxSizing: "border-box",
+            }}
+          />
         </div>
 
         <button
@@ -95,11 +111,11 @@ export function InverterImportModal({ onClose, onImported }: Props) {
           </button>
           <button
             onClick={handleImport}
-            disabled={!file || status === "loading"}
+            disabled={!file || !date || status === "loading"}
             style={{
               background: C.blue, border: "none", borderRadius: "8px",
               padding: "9px 20px", color: "#fff", cursor: "pointer", fontSize: "13px", fontWeight: 600,
-              opacity: !file || status === "loading" ? 0.6 : 1,
+              opacity: !file || !date || status === "loading" ? 0.6 : 1,
             }}
           >
             {status === "loading" ? "Імпортую..." : "Імпортувати"}

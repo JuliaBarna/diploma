@@ -54,25 +54,31 @@ function useIsMobile() {
 export function InverterTable() {
   const [date, setDate] = useState<string>(toDateInput(new Date()))
   const [records, setRecords] = useState<Row[]>([])
-  const [fetchedDate, setFetchedDate] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
   const [showRdnModal, setShowRdnModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const isMobile = useIsMobile()
 
-  const loading = fetchedDate !== date
-
   useEffect(() => {
     let cancelled = false
+    setLoading(true)
     fetch(`/api/inverter/records?date=${date}`)
       .then((r) => r.json())
       .then((data) => {
         if (!cancelled) {
-          setRecords(data)
-          setFetchedDate(date)
+          setRecords(Array.isArray(data) ? data : [])
+          setLoading(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRecords([])
+          setLoading(false)
         }
       })
     return () => { cancelled = true }
-  }, [date])
+  }, [date, refreshKey])
 
   const isEmpty = !loading && records.length === 0
 
@@ -116,7 +122,11 @@ export function InverterTable() {
       {showImportModal && (
         <InverterImportModal
           onClose={() => setShowImportModal(false)}
-          onImported={(_, date) => { setShowImportModal(false); setDate(date); setFetchedDate(null) }}
+          onImported={(_, importedDate) => {
+            setShowImportModal(false)
+            setDate(importedDate)
+            setRefreshKey(k => k + 1)
+          }}
         />
       )}
 
