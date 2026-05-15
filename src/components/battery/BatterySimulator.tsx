@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   ComposedChart, BarChart, Bar, Line, Area,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -22,32 +22,17 @@ interface DayResult {
   date: string; hourly: HourlyResult[]
   avgPriceUahMwh: number; baselineCost: number
   optimizedCost: number; savings: number
-  selfConsumptionRate: number; totalPv: number; totalLoad: number
   gridChargeKwh: number; totalSold: number; totalRevenue: number
 }
 interface Summary {
-  date: string; days: number
+  date: string
   avgDailySavingsUah: number; monthlySavingsUah: number
-  yearlySavingsUah: number; avgSelfConsumptionRate: number
-  paybackYears: number; avgPriceUahMwh: number
+  yearlySavingsUah: number; paybackYears: number
   hasRealData: boolean
 }
-interface FuzzyCriteria {
-  mode: string; label: string
-  f1Cost: number; f2Wear: number; f3Renewable: number
-}
-interface FuzzyResult {
-  criteria: FuzzyCriteria[]
-  preferenceMatrix: number[][]
-  strictPreference: number[][]
-  nonDomination: number[]
-  bestMode: string
-  ranking: string[]
-}
 interface SimulateResponse {
-  summary: Summary; scenarios: { capacityKwh: number; avgDailySavings: number; monthlySavings: number; yearlySavings: number; avgSelfConsumptionRate: number; paybackYears: number }[]
+  summary: Summary
   latestDay: DayResult; dayPrices: number[]
-  fuzzy?: FuzzyResult
 }
 
 // ── Стилі ─────────────────────────────────────────────────────────────────────
@@ -110,12 +95,6 @@ function PriceTooltip({ active, payload, label }: { active?: boolean; payload?: 
   )
 }
 
-// ── Кольори режимів ───────────────────────────────────────────────────────────
-
-const MODE_COLORS: Record<string, string> = {
-  u0: "#6b7280", u1: "#3b82f6", u2: "#f97316", u3: "#22c55e", u4: "#a855f7",
-}
-
 // ── Головний компонент ────────────────────────────────────────────────────────
 
 export function BatterySimulator() {
@@ -133,7 +112,6 @@ export function BatterySimulator() {
   const [data, setData] = useState<SimulateResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [noData, setNoData] = useState(false)
-  const [activeScenario, setActiveScenario] = useState<number | null>(null)
 
   const runSimulation = useCallback((overridePrices?: number[]) => {
     const p = overridePrices ?? prices
@@ -154,10 +132,27 @@ export function BatterySimulator() {
       .catch(() => { setNoData(true); setData(null); setLoading(false) })
   }, [capacity, goal, gridCharge, chargeMaxKwh, dischargeMinKwh, selectedDate, prices])
 
-  const hasRunRef = useRef(false)
+  // Load RDN prices from DB for the selected date, then run simulation
   useEffect(() => {
-    if (!hasRunRef.current) { hasRunRef.current = true; runSimulation() }
-  }, [runSimulation])
+    let cancelled = false
+    async function loadPricesAndSimulate() {
+      try {
+        const res = await fetch(`/api/rdn?date=${selectedDate}`)
+        if (cancelled) return
+        if (res.ok) {
+          const json = await res.json() as { prices: number[] }
+          if (!cancelled) {
+            setPrices(json.prices)
+            runSimulation(json.prices)
+            return
+          }
+        }
+      } catch { /* fall through */ }
+      if (!cancelled) runSimulation()
+    }
+    loadPricesAndSimulate()
+    return () => { cancelled = true }
+  }, [selectedDate]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function applyPriceText() {
     const parsed = pricesText.split(/[\s,;]+/).map(Number).filter(n => !isNaN(n) && n > 0)
@@ -183,7 +178,6 @@ export function BatterySimulator() {
   })) ?? []
 
   const s = data?.summary
-  const scenarios = data?.scenarios ?? []
   const ld = data?.latestDay
 
   return (
@@ -337,8 +331,8 @@ export function BatterySimulator() {
           <div>
             <div style={{ fontSize: "15px", fontWeight: 600, color: C.text }}>Погодинні ціни РДН</div>
             <div style={{ fontSize: "12px", color: C.dim, marginTop: "2px" }}>
-              Середня: <strong style={{ color: C.text }}>₴{fmt(avgPrice, 0)}/МВт·год</strong>
-              {" · "}
+             
+            
               Заряд нижче ₴{fmt(chargeMaxKwh, 1)}/кВт·год
               {" · "}
               Розряд вище ₴{fmt(dischargeMinKwh, 1)}/кВт·год
@@ -437,8 +431,8 @@ export function BatterySimulator() {
             <KpiCard label="Добова економія" value={`₴${fmt(s.avgDailySavingsUah, 0)}`} sub={`реальні дані · ${s.date}`} color="#22c55e" />
             <KpiCard label="На місяць" value={`₴${fmt(s.monthlySavingsUah, 0)}`} sub="30 днів" color="#22c55e" />
             <KpiCard label="На рік" value={`₴${fmt(s.yearlySavingsUah, 0)}`} sub="365 днів" />
-            <KpiCard label="Власне споживання" value={`${fmt(s.avgSelfConsumptionRate)}%`} sub="сонячна + батарея" color="#3b82f6" />
-            <KpiCard label="Середня ціна РДН" value={`₴${fmt(s.avgPriceUahMwh, 0)}`} sub="UAH/МВт·год" />
+           
+           
             <KpiCard label="Окупність" value={`${fmt(s.paybackYears, 1)} р.`}
               sub={`${fmtCap(capacity)} × ₴32 000`}
               color={s.paybackYears < 5 ? "#22c55e" : s.paybackYears < 10 ? "#f97316" : "#ef4444"} />
@@ -447,7 +441,7 @@ export function BatterySimulator() {
             <KpiCard label="На місяць" value={`₴${fmt(s.monthlySavingsUah, 0)}`} sub="30 днів" color="#f97316" />
             <KpiCard label="На рік" value={`₴${fmt(s.yearlySavingsUah, 0)}`} sub="365 днів" />
             <KpiCard label="Продано в мережу" value={`${fmt(ld?.totalSold ?? 0, 1)} кВт·год`} sub="за останній день" color="#a855f7" />
-            <KpiCard label="Середня ціна РДН" value={`₴${fmt(s.avgPriceUahMwh, 0)}`} sub="UAH/МВт·год" />
+          
             <KpiCard label="Окупність" value={`${fmt(s.paybackYears, 1)} р.`}
               sub={`${fmtCap(capacity)} × ₴32 000`}
               color={s.paybackYears < 5 ? "#22c55e" : s.paybackYears < 10 ? "#f97316" : "#ef4444"} />
