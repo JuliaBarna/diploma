@@ -2,34 +2,34 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import {
   simulateDay,
-  compareScenarios,
-  runFuzzyAnalysis,
   DEFAULT_BATTERY_CONFIG,
   type BatteryConfig,
   type HourInput,
+  type ScenarioMode,
 } from "@/lib/battery-optimizer"
-
-// GET /api/battery/simulate
-// Query params:
-//   date=2026-04-01           — конкретна дата аналізу (YYYY-MM-DD)
-//   capacity=500              — ємність батареї (кВт·год)
-//   gridCharge=true           — дозволити заряд з мережі в дешеві години
-//   chargeThreshold=0.7       — заряджати якщо ціна < avg × threshold
-//   dischargeThreshold=1.1    — розряджати якщо ціна > avg × threshold
-//   prices=2100,1900,...      — 24 ціни РДН через кому (UAH/MWh); якщо не передані — типові OREE
-//   goal=cost_savings|arbitrage
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
 
   const dateParam         = searchParams.get("date") ?? new Date().toISOString().slice(0, 10)
-  const capacity           = Number(searchParams.get("capacity") ?? DEFAULT_BATTERY_CONFIG.capacityKwh)
-  const gridCharge         = searchParams.get("gridCharge") !== "false"
-  const chargeMaxPrice     = Number(searchParams.get("chargeMaxPrice")    ?? DEFAULT_BATTERY_CONFIG.chargeMaxPriceKwh)
-  const dischargeMinPrice  = Number(searchParams.get("dischargeMinPrice") ?? DEFAULT_BATTERY_CONFIG.dischargeMinPriceKwh)
-  const goal               = (searchParams.get("goal") ?? "cost_savings") as "arbitrage" | "cost_savings"
+  const capacity          = Number(searchParams.get("capacity")          ?? DEFAULT_BATTERY_CONFIG.capacityKwh)
+  const gridCharge        = searchParams.get("gridCharge") !== "false"
+  const chargeMaxPrice    = Number(searchParams.get("chargeMaxPrice")    ?? DEFAULT_BATTERY_CONFIG.chargeMaxPriceKwh)
+  const dischargeMinPrice = Number(searchParams.get("dischargeMinPrice") ?? DEFAULT_BATTERY_CONFIG.dischargeMinPriceKwh)
 
-  // Парсимо ціни: або з параметру, або з БД РДН
+  const mode = (searchParams.get("mode") ?? "u3") as ScenarioMode
+
+  const config: BatteryConfig = {
+    ...DEFAULT_BATTERY_CONFIG,
+    capacityKwh:          capacity,
+    maxChargeKw:          capacity * 0.5,
+    maxDischargeKw:       capacity * 0.5,
+    gridChargeEnabled:    gridCharge,
+    chargeMaxPriceKwh:    chargeMaxPrice,
+    dischargeMinPriceKwh: dischargeMinPrice,
+  }
+
+  // ── Ціни РДН для обраного дня ────────────────────────────────────────────────
   const rawPrices = searchParams.get("prices")
   let dayPrices: number[]
   if (rawPrices) {
@@ -40,75 +40,85 @@ export async function GET(req: NextRequest) {
     const rdnRows  = await prisma.rdnPrice.findMany({
       where: { date: { gte: dayStart, lte: dayEnd } },
       select: { hour: true, price: true },
-      orderBy: { hour: "asc" },
     })
     dayPrices = Array.from({ length: 24 }, (_, h) => rdnRows.find(r => r.hour === h)?.price ?? 0)
   }
   while (dayPrices.length < 24) dayPrices.push(dayPrices[dayPrices.length - 1] ?? 0)
 
-  const config: BatteryConfig = {
-    ...DEFAULT_BATTERY_CONFIG,
-    capacityKwh: capacity,
-    maxChargeKw: capacity * 0.5,
-    maxDischargeKw: capacity * 0.5,
-    gridChargeEnabled: gridCharge,
-    chargeMaxPriceKwh: chargeMaxPrice,
-    dischargeMinPriceKwh: dischargeMinPrice,
-    goal,
-  }
-
-  // Завантажуємо дані за конкретну добу
+  // ── Дані інвертора за обраний день ───────────────────────────────────────────
   const dayStart = new Date(dateParam + "T00:00:00.000Z")
   const dayEnd   = new Date(dateParam + "T23:59:59.999Z")
 
   const dbRecords = await prisma.inverterRecord.findMany({
     where: { timestamp: { gte: dayStart, lte: dayEnd } },
-    select: { timestamp: true, pvYield: true, import: true },
+    select: { timestamp: true, pvYield: true, import: true, export: true },
     orderBy: { timestamp: "asc" },
   })
 
   if (dbRecords.length === 0) {
-    return NextResponse.json(
-      { error: `Немає даних за ${dateParam}` },
-      { status: 404 }
-    )
+    return NextResponse.json({ error: `Немає даних за ${dateParam}` }, { status: 404 })
   }
 
-  const dayHours: HourInput[] = dbRecords.map(r => ({
-    hour: r.timestamp.getUTCHours(),
-    pvKwh: r.pvYield,
-    loadKwh: r.pvYield + r.import,
-  }))
+  const dayHours: HourInput[] = dbRecords
+    .map(r => ({ hour: r.timestamp.getUTCHours(), pvKwh: r.pvYield, loadKwh: r.pvYield + r.import - r.export }))
+    .sort((a, b) => a.hour - b.hour)
 
-  // Сортуємо по годинах (на всяк випадок)
-  dayHours.sort((a, b) => a.hour - b.hour)
+  const dayResult = simulateDay(dateParam, dayHours, dayPrices, config, mode, 0)
 
-  const allDayHours  = [dayHours]
-  const allDayPrices = [dayPrices]
+  // ── Місячна економія: симулюємо кожен день місяця окремо ─────────────────────
+  const [year, month] = dateParam.split("-").map(Number)
+  const monthStart = new Date(Date.UTC(year, month - 1, 1))
+  const monthEnd   = new Date(Date.UTC(year, month, 1))
 
-  const dayResult = simulateDay(dateParam, dayHours, dayPrices, config, 0.5)
+  const monthRecords = await prisma.inverterRecord.findMany({
+    where: { timestamp: { gte: monthStart, lt: monthEnd } },
+    select: { timestamp: true, pvYield: true, import: true, export: true },
+    orderBy: { timestamp: "asc" },
+  })
+
+  // Групуємо по даті "YYYY-MM-DD"
+  const byDay = new Map<string, HourInput[]>()
+  for (const r of monthRecords) {
+    const d = r.timestamp.toISOString().slice(0, 10)
+    if (!byDay.has(d)) byDay.set(d, [])
+    byDay.get(d)!.push({ hour: r.timestamp.getUTCHours(), pvKwh: r.pvYield, loadKwh: r.pvYield + r.import - r.export })
+  }
+
+  // Завантажуємо ціни РДН для всього місяця
+  const monthRdnRows = await prisma.rdnPrice.findMany({
+    where: { date: { gte: monthStart, lt: monthEnd } },
+    select: { date: true, hour: true, price: true },
+  })
+  const rdnByDay = new Map<string, number[]>()
+  for (const r of monthRdnRows) {
+    const d = r.date.toISOString().slice(0, 10)
+    if (!rdnByDay.has(d)) rdnByDay.set(d, Array(24).fill(0))
+    rdnByDay.get(d)![r.hour] = r.price
+  }
+
+  let monthlySavings = 0
+  let prevSoC = 0.5
+  for (const [date, hours] of byDay) {
+    const prices = rdnByDay.get(date) ?? dayPrices
+    const result = simulateDay(date, hours.sort((a, b) => a.hour - b.hour), prices, config, mode, prevSoC)
+    monthlySavings += result.savings
+    prevSoC = result.hourly[result.hourly.length - 1]?.socEnd ?? 0.5
+  }
+
+  const daysWithData   = byDay.size || 1
+  const avgDailySavings = monthlySavings / daysWithData
+  const yearlySavings  = Math.round(avgDailySavings * 365 * 100) / 100
 
   const summary = {
     date: dateParam,
-    days: 1,
-    avgDailySavingsUah:    Math.round(dayResult.savings * 100) / 100,
-    monthlySavingsUah:     Math.round(dayResult.savings * 30 * 100) / 100,
-    yearlySavingsUah:      Math.round(dayResult.savings * 365 * 100) / 100,
-    avgSelfConsumptionRate: Math.round(dayResult.selfConsumptionRate * 10) / 10,
-    paybackYears: dayResult.savings * 365 > 0
-      ? Math.round((capacity * 32_000) / (dayResult.savings * 365) * 10) / 10
+    avgDailySavingsUah: Math.round(dayResult.savings * 100) / 100,
+    monthlySavingsUah:  Math.round(monthlySavings * 100) / 100,
+    yearlySavingsUah:   yearlySavings,
+    paybackYears: yearlySavings > 0
+      ? Math.round((capacity * 30_000) / yearlySavings * 10) / 10
       : 99,
-    avgPriceUahMwh: Math.round(dayPrices.reduce((s, p) => s + p, 0) / dayPrices.length),
-    hasRealData: dbRecords.length > 0,
+    hasRealData: true,
   }
 
-  const scenarios = compareScenarios(allDayHours, allDayPrices, [200, 500, 1000, 2000], goal)
-  const fuzzy     = runFuzzyAnalysis(allDayHours, allDayPrices, config)
-
-  return NextResponse.json({
-    config, summary, scenarios,
-    latestDay: dayResult,
-    dailyResults: [dayResult],
-    dayPrices, fuzzy,
-  })
+  return NextResponse.json({ summary, latestDay: dayResult, dayPrices })
 }
