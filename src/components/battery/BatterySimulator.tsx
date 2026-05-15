@@ -6,7 +6,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer, Cell,
 } from "recharts"
-import { priceColor, priceTier } from "@/lib/battery-optimizer"
+import { priceColor, priceTier, type ScenarioMode, MODE_LABELS } from "@/lib/battery-optimizer"
 
 // ── Типи (відображають відповідь API) ────────────────────────────────────────
 
@@ -19,10 +19,12 @@ interface HourlyResult {
   optImport: number; optSell: number; optCost: number
 }
 interface DayResult {
-  date: string; hourly: HourlyResult[]
-  avgPriceUahMwh: number; baselineCost: number
-  optimizedCost: number; savings: number
-  gridChargeKwh: number; totalSold: number; totalRevenue: number
+  date: string
+  hourly: HourlyResult[]
+  baselineCost: number
+  optimizedCost: number
+  savings: number
+  gridChargeKwh: number
 }
 interface Summary {
   date: string
@@ -98,7 +100,6 @@ function PriceTooltip({ active, payload, label }: { active?: boolean; payload?: 
 // ── Головний компонент ────────────────────────────────────────────────────────
 
 export function BatterySimulator() {
-  const [goal, setGoal] = useState<"cost_savings" | "arbitrage">("cost_savings")
   const [capacity, setCapacity] = useState(500)
   const [gridCharge, setGridCharge] = useState(true)
   const [chargeMaxKwh, setChargeMaxKwh] = useState(4.0)
@@ -113,8 +114,11 @@ export function BatterySimulator() {
   const [loading, setLoading] = useState(false)
   const [noData, setNoData] = useState(false)
 
-  const runSimulation = useCallback((overridePrices?: number[]) => {
+  const [mode, setMode] = useState<ScenarioMode>("u3")
+
+const runSimulation = useCallback((overridePrices?: number[], overrideMode?: ScenarioMode) => {
     const p = overridePrices ?? prices
+    const m = overrideMode ?? mode
     setLoading(true)
     const params = new URLSearchParams({
       date: selectedDate,
@@ -122,17 +126,17 @@ export function BatterySimulator() {
       gridCharge: String(gridCharge),
       chargeMaxPrice: String(chargeMaxKwh),
       dischargeMinPrice: String(dischargeMinKwh),
+      mode: m,
       prices: p.join(","),
-      goal,
     })
     setNoData(false)
     fetch(`/api/battery/simulate?${params}`)
       .then(r => r.ok ? r.json() : r.json().then((e: { error?: string }) => Promise.reject(e)))
       .then((d: SimulateResponse) => { setData(d); setLoading(false) })
       .catch(() => { setNoData(true); setData(null); setLoading(false) })
-  }, [capacity, goal, gridCharge, chargeMaxKwh, dischargeMinKwh, selectedDate, prices])
+  }, [capacity, gridCharge, chargeMaxKwh, dischargeMinKwh, selectedDate, prices, mode])
 
-  // Load RDN prices from DB for the selected date, then run simulation
+  // Load RDN prices from DB for the selected date, then run simulation + fuzzy
   useEffect(() => {
     let cancelled = false
     async function loadPricesAndSimulate() {
@@ -148,7 +152,7 @@ export function BatterySimulator() {
           }
         }
       } catch { /* fall through */ }
-      if (!cancelled) runSimulation()
+      if (!cancelled) { runSimulation() }
     }
     loadPricesAndSimulate()
     return () => { cancelled = true }
@@ -172,9 +176,9 @@ export function BatterySimulator() {
     "Генерація PV": h.pvKwh,
     "Споживання": h.loadKwh,
     "Імпорт (без батареї)": h.baseImport,
-    "Імпорт (з батареєю)": h.optImport,
-    "Продано в мережу": h.optSell,
-    "SoC батареї (%)": h.socEnd * 100,
+    ...(mode !== "u0" ? { "Імпорт (з батареєю)": h.optImport } : {}),
+    ...(mode === "u0" ? { "Експорт в мережу": h.baseExport } : {}),
+    ...(mode !== "u0" ? { "SoC батареї (%)": h.socEnd * 100 } : {}),
   })) ?? []
 
   const s = data?.summary
@@ -182,36 +186,6 @@ export function BatterySimulator() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-
-      {/* ── Вибір бізнес-мети ─────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-        {([
-          {
-            key: "cost_savings" as const,
-            title: "Економія витрат",
-            desc: "Мінімізація рахунку за електроенергію.",
-            icon: "💰",
-          },
-          {
-            key: "arbitrage" as const,
-            title: "Ціновий арбітраж",
-            desc: "Максимальний заряд у дешеві нічні години, продаж електроенергії в мережу в дорогі пікові години для отримання прибутку.",
-            icon: "📈",
-          },
-        ] as const).map(({ key, title, desc, icon }) => (
-          <button key={key} onClick={() => setGoal(key)}
-            style={{
-              textAlign: "left", padding: "18px 20px", borderRadius: "12px", cursor: "pointer",
-              border: `2px solid ${goal === key ? "#22c55e" : C.border}`,
-              background: goal === key ? "rgba(34,197,94,0.07)" : C.card,
-              transition: "all 0.15s",
-            }}>
-            <div style={{ fontSize: "20px", marginBottom: "6px" }}>{icon}</div>
-            <div style={{ fontSize: "14px", fontWeight: 600, color: goal === key ? "#22c55e" : C.text, marginBottom: "4px" }}>{title}</div>
-            <div style={{ fontSize: "12px", color: C.dim, lineHeight: 1.5 }}>{desc}</div>
-          </button>
-        ))}
-      </div>
 
       {/* ── Конфігурація ─────────────────────────────────────────────── */}
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "14px", padding: "28px" }}>
@@ -232,14 +206,14 @@ export function BatterySimulator() {
               <input
                 type="number" value={capacity}
                 onChange={e => { const v = Number(e.target.value); if (!isNaN(v) && v > 0) setCapacity(v) }}
-                onBlur={() => setCapacity(v => Math.max(100, Math.min(10000, v)))}
+                onBlur={() => setCapacity(v => Math.max(10, Math.min(10000, v)))}
                 style={{ flex: 1, padding: "10px 14px", borderRadius: "8px", fontSize: "20px", fontWeight: 700, border: `2px solid #22c55e`, background: "var(--c-card)", color: "#22c55e", width: 0 }}
               />
               <span style={{ fontSize: "14px", color: C.muted, flexShrink: 0 }}>кВт·год</span>
             </div>
             <div style={{ fontSize: "12px", color: C.dim, marginBottom: "4px" }}>
               = <strong style={{ color: "#22c55e" }}>{fmtCap(capacity)}</strong>
-              {" · "}вартість установки ≈ <strong style={{ color: C.text }}>₴{(capacity * 32000).toLocaleString("uk-UA")}</strong>
+              {" · "}вартість установки ≈ <strong style={{ color: C.text }}>₴{(capacity * 30000).toLocaleString("uk-UA")}</strong>
             </div>
             <div style={{ fontSize: "12px", color: C.dim, marginTop: "8px", lineHeight: 1.5 }}>
               Фізичний розмір накопичувача. Більша ємність — більше енергії можна зберегти, але вища вартість.
@@ -427,27 +401,34 @@ export function BatterySimulator() {
       {/* ── KPI-картки ───────────────────────────────────────────────── */}
       {s && (
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-          {goal === "cost_savings" ? <>
-            <KpiCard label="Добова економія" value={`₴${fmt(s.avgDailySavingsUah, 0)}`} sub={`реальні дані · ${s.date}`} color="#22c55e" />
-            <KpiCard label="На місяць" value={`₴${fmt(s.monthlySavingsUah, 0)}`} sub="30 днів" color="#22c55e" />
-            <KpiCard label="На рік" value={`₴${fmt(s.yearlySavingsUah, 0)}`} sub="365 днів" />
-           
-           
+          <KpiCard label="Добова економія" value={`₴${fmt(s.avgDailySavingsUah, 0)}`} sub={`реальні дані · ${s.date}`} color="#22c55e" />
+          <KpiCard label="На місяць" value={`₴${fmt(s.monthlySavingsUah, 0)}`} sub="30 днів" color="#22c55e" />
+          <KpiCard label="На рік" value={`₴${fmt(s.yearlySavingsUah, 0)}`} sub="365 днів" />
+          {s.yearlySavingsUah > 0 && (
             <KpiCard label="Окупність" value={`${fmt(s.paybackYears, 1)} р.`}
-              sub={`${fmtCap(capacity)} × ₴32 000`}
+              sub={`${fmtCap(capacity)} × ₴30 000`}
               color={s.paybackYears < 5 ? "#22c55e" : s.paybackYears < 10 ? "#f97316" : "#ef4444"} />
-          </> : <>
-            <KpiCard label="Добовий прибуток" value={`₴${fmt(s.avgDailySavingsUah, 0)}`} sub={s.hasRealData ? `реальні дані · ${s.date}` : `прогноз · ${s.date}`} color="#f97316" />
-            <KpiCard label="На місяць" value={`₴${fmt(s.monthlySavingsUah, 0)}`} sub="30 днів" color="#f97316" />
-            <KpiCard label="На рік" value={`₴${fmt(s.yearlySavingsUah, 0)}`} sub="365 днів" />
-            <KpiCard label="Продано в мережу" value={`${fmt(ld?.totalSold ?? 0, 1)} кВт·год`} sub="за останній день" color="#a855f7" />
-          
-            <KpiCard label="Окупність" value={`${fmt(s.paybackYears, 1)} р.`}
-              sub={`${fmtCap(capacity)} × ₴32 000`}
-              color={s.paybackYears < 5 ? "#22c55e" : s.paybackYears < 10 ? "#f97316" : "#ef4444"} />
-          </>}
+          )}
         </div>
       )}
+
+      {/* ── Вибір режиму симуляції ───────────────────────────────────── */}
+      <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "14px", padding: "20px 24px" }}>
+        <div style={{ fontSize: "12px", color: C.dim, marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Стратегія керування батареєю</div>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          {(["u0", "u1", "u2", "u3", "u4"] as ScenarioMode[]).map(m => (
+            <button key={m} onClick={() => { setMode(m); runSimulation(undefined, m) }}
+              style={{
+                padding: "8px 16px", borderRadius: "8px", fontSize: "13px", fontWeight: m === mode ? 700 : 400,
+                border: `2px solid ${m === mode ? "#22c55e" : C.border}`,
+                background: m === mode ? "rgba(34,197,94,0.1)" : "transparent",
+                color: m === mode ? "#22c55e" : C.muted, cursor: "pointer", transition: "all 0.15s",
+              }}>
+              {MODE_LABELS[m]}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* ── Погодинна симуляція ───────────────────────────────────────── */}
       {ld && (
@@ -455,15 +436,18 @@ export function BatterySimulator() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px", flexWrap: "wrap", gap: "8px" }}>
             <div>
               <div style={{ fontSize: "15px", fontWeight: 600, color: C.text }}>Погодинна симуляція — {ld.date}</div>
-              <div style={{ fontSize: "12px", color: C.dim, marginTop: "2px" }}>Колір стовпців цін відповідає стратегії батареї</div>
+              <div style={{ fontSize: "12px", color: C.dim, marginTop: "2px" }}>{MODE_LABELS[mode]}</div>
             </div>
             <div style={{ display: "flex", gap: "20px", fontSize: "13px", flexWrap: "wrap" }}>
-              <span style={{ color: C.muted }}>Без батареї: <strong style={{ color: "#ef4444" }}>₴{fmt(ld.baselineCost, 0)}</strong></span>
-              <span style={{ color: C.muted }}>З батареєю: <strong style={{ color: "#22c55e" }}>₴{fmt(ld.optimizedCost, 0)}</strong></span>
-              {goal === "cost_savings"
-                ? <span style={{ color: "#22c55e", fontWeight: 700 }}>Економія: ₴{fmt(ld.savings, 0)}</span>
-                : <span style={{ color: "#f97316", fontWeight: 700 }}>Продано: {fmt(ld.totalSold, 1)} кВт·год · ₴{fmt(ld.totalRevenue, 0)}</span>
-              }
+              {mode === "u0" ? (
+                <span style={{ color: C.muted }}>Денні витрати: <strong style={{ color: C.text }}>₴{fmt(ld.baselineCost, 0)}</strong></span>
+              ) : (
+                <>
+                  <span style={{ color: C.muted }}>Без батареї: <strong style={{ color: "#ef4444" }}>₴{fmt(ld.baselineCost, 0)}</strong></span>
+                  <span style={{ color: C.muted }}>З батареєю: <strong style={{ color: "#22c55e" }}>₴{fmt(ld.optimizedCost, 0)}</strong></span>
+                  <span style={{ color: "#22c55e", fontWeight: 700 }}>Економія: ₴{fmt(ld.savings, 0)}</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -474,32 +458,38 @@ export function BatterySimulator() {
                 tick={{ fontSize: 11, fill: "var(--c-dim)" }} interval={2} axisLine={false} tickLine={false} />
               <YAxis yAxisId="kwh" tick={{ fontSize: 11, fill: "var(--c-dim)" }}
                 axisLine={false} tickLine={false} width={55} tickFormatter={v => `${v} кВт`} />
-              <YAxis yAxisId="soc" orientation="right" domain={[0, 100]}
-                tick={{ fontSize: 11, fill: "var(--c-dim)" }} axisLine={false} tickLine={false} width={40}
-                tickFormatter={v => `${v}%`} />
+              {mode !== "u0" && (
+                <YAxis yAxisId="soc" orientation="right" domain={[0, 100]}
+                  tick={{ fontSize: 11, fill: "var(--c-dim)" }} axisLine={false} tickLine={false} width={40}
+                  tickFormatter={v => `${v}%`} />
+              )}
               <Tooltip content={<HourTooltip />} />
               <Legend wrapperStyle={{ fontSize: "12px", paddingTop: "12px" }} />
               <Bar yAxisId="kwh" dataKey="Генерація PV" fill="#22c55e" opacity={0.75} radius={[2, 2, 0, 0]} />
               <Line yAxisId="kwh" type="monotone" dataKey="Споживання" stroke="#ef4444" strokeWidth={2} dot={false} />
               <Area yAxisId="kwh" type="monotone" dataKey="Імпорт (без батареї)"
                 stroke="#6b7280" fill="#6b7280" fillOpacity={0.15} strokeWidth={1.5} strokeDasharray="4 2" dot={false} />
-              <Area yAxisId="kwh" type="monotone" dataKey="Імпорт (з батареєю)"
-                stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25} strokeWidth={2} dot={false} />
-              {goal === "arbitrage" && (
-                <Area yAxisId="kwh" type="monotone" dataKey="Продано в мережу"
-                  stroke="#f97316" fill="#f97316" fillOpacity={0.25} strokeWidth={2} dot={false} />
+              {mode !== "u0" && (
+                <Area yAxisId="kwh" type="monotone" dataKey="Імпорт (з батареєю)"
+                  stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.25} strokeWidth={2} dot={false} />
               )}
-              <Line yAxisId="soc" type="monotone" dataKey="SoC батареї (%)"
-                stroke="#a855f7" strokeWidth={2} dot={false} strokeDasharray="6 2" />
+              {mode === "u0" && (
+                <Area yAxisId="kwh" type="monotone" dataKey="Експорт в мережу"
+                  stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.2} strokeWidth={2} dot={false} />
+              )}
+              {mode !== "u0" && (
+                <Line yAxisId="soc" type="monotone" dataKey="SoC батареї (%)"
+                  stroke="#a855f7" strokeWidth={2} dot={false} strokeDasharray="6 2" />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
 
           <div style={{ marginTop: "16px", padding: "12px 16px", borderRadius: "8px", background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)", fontSize: "12px", color: C.muted, lineHeight: 1.6 }}>
             <strong style={{ color: "#3b82f6" }}>Читання графіка:</strong>{" "}
-            🟢 стовпці — сонячна генерація; 🔴 лінія — споживання;
-            ⬛ пунктир — імпорт без батареї; 🔵 заливка — імпорт з батареєю;
-            {goal === "arbitrage" && " 🟠 заливка — продано в мережу (арбітраж);"}
-            🟣 пунктир — рівень заряду батареї (права вісь %).
+            🟢 стовпці — сонячна генерація; 🔴 лінія — споживання;{" "}
+            {mode === "u0"
+              ? "⬛ заливка — імпорт з мережі; 🟡 заливка — надлишок сонця, проданий в мережу."
+              : "⬛ пунктир — імпорт без батареї; 🔵 заливка — імпорт з батареєю; 🟣 пунктир — рівень заряду батареї (права вісь %)."}
             {ld.gridChargeKwh > 0 && ` Заряджено з дешевої мережі: ${fmt(ld.gridChargeKwh, 1)} кВт·год.`}
           </div>
         </div>
