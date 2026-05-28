@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
   const dayStart   = new Date(dataDate + "T00:00:00.000Z")
   const dayEnd     = new Date(dataDate + "T23:59:59.999Z")
   const monthStart = new Date(dataDate.slice(0, 7) + "-01T00:00:00.000Z")
+  const monthEnd   = new Date(new Date(monthStart).setMonth(monthStart.getMonth() + 1))
 
   // ── Дані за останню добу ───────────────────────────────────────────────────
   const [dayRecords, dayRdnRows] = await Promise.all([
@@ -64,6 +65,8 @@ export async function GET(request: NextRequest) {
   const agg = await prisma.inverterRecord.aggregate({ _sum: { pvYield: true } })
   const totalYield = r2((agg._sum.pvYield ?? 0) / 1000)
 
+  const consumptionToday = r2(yieldToday + supplyFromGrid - exportToday)
+
   // ── Графік по годинах за останню добу ─────────────────────────────────────
   const energyChartData = dayRecords.map(r => ({
     time:        r.statisticalPeriod,
@@ -73,15 +76,15 @@ export async function GET(request: NextRequest) {
     export:      r2(r.export),
   }))
 
-  // ── Дані за місяць останньої доби ─────────────────────────────────────────
+  // ── Дані за місяць (повний місяць обраної дати) ───────────────────────────
   const [monthRecords, monthRdnRows] = await Promise.all([
     prisma.inverterRecord.findMany({
-      where: { timestamp: { gte: monthStart, lte: dayEnd } },
+      where: { timestamp: { gte: monthStart, lt: monthEnd } },
       orderBy: { timestamp: "asc" },
       select: { timestamp: true, pvYield: true, import: true, export: true },
     }),
     prisma.rdnPrice.findMany({
-      where: { date: { gte: monthStart, lte: dayEnd } },
+      where: { date: { gte: monthStart, lt: monthEnd } },
       select: { date: true, hour: true, price: true },
     }),
   ])
@@ -144,6 +147,7 @@ export async function GET(request: NextRequest) {
     supplyFromGrid,
     exportToday,
     totalYield,
+    consumptionToday,
     revenueToday,
     energyChartData,
     monthEnergyData,

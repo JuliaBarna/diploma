@@ -24,6 +24,7 @@ export interface LiveStats {
   supplyFromGrid: number
   exportToday: number
   totalYield: number
+  consumptionToday: number
   revenueToday: number
   energyChartData: EnergyChartPoint[]
   monthEnergyData: EnergyChartPoint[]

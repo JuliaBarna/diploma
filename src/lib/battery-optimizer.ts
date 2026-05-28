@@ -64,8 +64,8 @@ export const DEFAULT_BATTERY_CONFIG: BatteryConfig = {
   capacityKwh: 200,
   maxChargeKw: 100,
   maxDischargeKw: 100,
-  minSoC: 0.10,
-  maxSoC: 0.90,
+  minSoC: 0.050,
+  maxSoC: 1.00,
   chargeEfficiency: 0.95,
   dischargeEfficiency: 0.95,
   gridChargeEnabled: true,
@@ -98,6 +98,7 @@ export interface HourlyResult {
   baseCost: number        // витрати − дохід, ₴ (може бути від'ємним при продажу)
   // Оптимізований сценарій
   batAction: number       // >0 заряд, <0 розряд (кВт·год)
+  socStart: number        // SoC на початку години (0–1)
   socEnd: number          // SoC в кінці години (0–1)
   optImport: number       // куплено з мережі, кВт·год
   optSell: number         // продано в мережу (сонце + батарея при арбітражі), кВт·год
@@ -133,6 +134,19 @@ export function simulateDay(
   } = config
 
   const avgPrice = prices.reduce((s, p) => s + p, 0) / prices.length
+
+  // u2: day-ahead planning — cheapest hours → charge, most expensive → sell discharge
+  // u3: day-ahead planning — cheapest hours → charge; discharge only covers consumption
+  const u2ChargeHours    = new Set<number>()
+  const u2DischargeHours = new Set<number>()
+  const u3ChargeHours    = new Set<number>()
+  if (mode === "u2" || mode === "u3") {
+    const ranked = prices.map((p, h) => ({ h, p })).sort((a, b) => a.p - b.p)
+    const n = Math.ceil(24 * 0.35)
+    ranked.slice(0, n).forEach(x => (mode === "u2" ? u2ChargeHours : u3ChargeHours).add(x.h))
+    if (mode === "u2") ranked.slice(-n).forEach(x => u2DischargeHours.add(x.h))
+  }
+
   let soc = clamp(initialSoC, minSoC, maxSoC)
   let gridChargeKwh = 0
   const hourly: HourlyResult[] = []
@@ -151,6 +165,7 @@ export function simulateDay(
     const baseExport = r3(Math.max(0, net))
     const baseCost   = r3(baseImport * bPrice - baseExport * sPrice)
 
+    const socStart = soc
     let batAction  = 0
     let gridImport = 0
     let gridSell   = 0
@@ -158,15 +173,62 @@ export function simulateDay(
     if (mode === "u0") {
       gridImport = baseImport
       gridSell   = baseExport
+    } else if (mode === "u3") {
+      // u3: пріоритет самоспоживання — заряд з мережі в дешеві години,
+      //     розряд тільки покриває споживання (батарея ніколи не продається в мережу)
+      if (u3ChargeHours.has(i) && gridChargeEnabled) {
+        // Дешева година: сонце → споживання, надлишок сонця + мережа → батарея
+        if (net >= 0) {
+          // Сонця вистачає: все сонце → батарея, споживання → мережа (якщо є місце)
+          const canSolarCharge = Math.min(h.pvKwh, maxChargeKw, ((maxSoC - soc) * capacityKwh) / chargeEfficiency)
+          const remainSpace    = ((maxSoC - soc) * capacityKwh) / chargeEfficiency - canSolarCharge
+          const canGridCharge  = Math.min(maxChargeKw - canSolarCharge, remainSpace)
+          batAction = r3(canSolarCharge + canGridCharge)
+          if (batAction > 0) {
+            soc = clamp(soc + (batAction * chargeEfficiency) / capacityKwh, minSoC, maxSoC)
+            gridChargeKwh += canGridCharge
+            gridSell   = r3(Math.max(0, h.pvKwh - canSolarCharge))
+            gridImport = r3(h.loadKwh + canGridCharge)
+          } else {
+            // Батарея повна: сонце покриває споживання звично
+            gridSell   = r3(net)
+            gridImport = 0
+          }
+        } else {
+          // Сонця не вистачає: мережа покриває дефіцит і заряджає батарею
+          const deficit = -net
+          const canGC   = Math.min(maxChargeKw, ((maxSoC - soc) * capacityKwh) / chargeEfficiency)
+          batAction = r3(canGC)
+          if (batAction > 0) {
+            soc = clamp(soc + (batAction * chargeEfficiency) / capacityKwh, minSoC, maxSoC)
+            gridChargeKwh += batAction
+          }
+          gridImport = r3(deficit + batAction)
+        }
+      } else {
+        // Решта годин: розряд для покриття дефіциту споживання (не для арбітражного продажу)
+        if (net >= 0) {
+          const canCharge = Math.min(net, maxChargeKw, ((maxSoC - soc) * capacityKwh) / chargeEfficiency)
+          batAction = r3(canCharge)
+          soc = clamp(soc + (batAction * chargeEfficiency) / capacityKwh, minSoC, maxSoC)
+          gridSell = r3(net - batAction)
+        } else {
+          const deficit = -net
+          const canDisch = Math.min(deficit, maxDischargeKw, (soc - minSoC) * capacityKwh * dischargeEfficiency)
+          batAction = r3(-canDisch)
+          soc = clamp(soc - (canDisch / dischargeEfficiency) / capacityKwh, minSoC, maxSoC)
+          gridImport = r3(deficit - canDisch)
+        }
+      }
     } else if (net >= 0) {
-      if (mode === "u2" && tier === "expensive") {
-        // Арбітраж: продаємо сонце + розряд батареї за дорогою ціною
+      if (mode === "u2" && u2DischargeHours.has(i)) {
+        // u2 дорога година: сонце + батарея → мережу (арбітраж)
         const canDisch = Math.min(maxDischargeKw, (soc - minSoC) * capacityKwh * dischargeEfficiency)
         batAction = r3(-canDisch)
         soc = clamp(soc - (canDisch / dischargeEfficiency) / capacityKwh, minSoC, maxSoC)
         gridSell = r3(net + canDisch)
       } else {
-        // u1, u2 (не дорога), u3, u4: заряд від сонця, залишок продаємо
+        // u1, u2 (нейтральна): сонце покриває споживання, надлишок → батарея
         const canCharge = Math.min(net, maxChargeKw, ((maxSoC - soc) * capacityKwh) / chargeEfficiency)
         batAction = r3(Math.max(0, canCharge))
         soc = clamp(soc + (batAction * chargeEfficiency) / capacityKwh, minSoC, maxSoC)
@@ -183,8 +245,8 @@ export function simulateDay(
         }
         gridImport = r3(deficit + batAction)
       } else if (mode === "u2") {
-        // Арбітраж: дешево — заряд з мережі; дорого — максимальний розряд (+ продаж надлишку)
-        if (tier === "cheap" && gridChargeEnabled) {
+        // u2 day-ahead: найдешевші → заряд, найдорожчі → розряд
+        if (u2ChargeHours.has(i) && gridChargeEnabled) {
           const canGC = Math.min(maxChargeKw, ((maxSoC - soc) * capacityKwh) / chargeEfficiency)
           batAction = r3(canGC)
           if (batAction > 0) {
@@ -192,7 +254,7 @@ export function simulateDay(
             gridChargeKwh += batAction
           }
           gridImport = r3(deficit + batAction)
-        } else if (tier === "expensive") {
+        } else if (u2DischargeHours.has(i)) {
           const canDisch = Math.min(maxDischargeKw, (soc - minSoC) * capacityKwh * dischargeEfficiency)
           batAction = r3(-canDisch)
           soc = clamp(soc - (canDisch / dischargeEfficiency) / capacityKwh, minSoC, maxSoC)
@@ -202,33 +264,6 @@ export function simulateDay(
         } else {
           gridImport = r3(deficit)
         }
-      } else if (mode === "u3") {
-        // Комбінований: дешево — заряд до 80% SoC, дорого — розряд
-        if (tier === "cheap" && gridChargeEnabled) {
-          const targetSoC = 0.80
-          const canGC = soc < targetSoC
-            ? Math.min(maxChargeKw, ((targetSoC - soc) * capacityKwh) / chargeEfficiency)
-            : 0
-          batAction = r3(canGC)
-          if (batAction > 0) {
-            soc = clamp(soc + (batAction * chargeEfficiency) / capacityKwh, minSoC, maxSoC)
-            gridChargeKwh += batAction
-          }
-          gridImport = r3(deficit + batAction)
-        } else if (tier === "expensive") {
-          const canDisch = Math.min(deficit, maxDischargeKw, (soc - minSoC) * capacityKwh * dischargeEfficiency)
-          batAction = r3(-Math.max(0, canDisch))
-          soc = clamp(soc - ((-batAction) / dischargeEfficiency) / capacityKwh, minSoC, maxSoC)
-          gridImport = r3(deficit + batAction)
-        } else {
-          gridImport = r3(deficit)
-        }
-      } else if (mode === "u4") {
-        // Мінімізація піків: завжди розряджаємо при дефіциті
-        const canDisch = Math.min(deficit, maxDischargeKw, (soc - minSoC) * capacityKwh * dischargeEfficiency)
-        batAction = r3(-Math.max(0, canDisch))
-        soc = clamp(soc - ((-batAction) / dischargeEfficiency) / capacityKwh, minSoC, maxSoC)
-        gridImport = r3(deficit + batAction)
       }
     }
 
@@ -249,6 +284,7 @@ export function simulateDay(
       baseExport,
       baseCost,
       batAction,
+      socStart: r3(socStart),
       socEnd: r3(soc),
       optImport,
       optSell,
@@ -271,14 +307,13 @@ export function simulateDay(
 
 // ── Fuzzy Preference Relations ────────────────────────────────────────────────
 
-export type ScenarioMode = "u0" | "u1" | "u2" | "u3" | "u4"
+export type ScenarioMode = "u0" | "u1" | "u2" | "u3"
 
 export const MODE_LABELS: Record<ScenarioMode, string> = {
   u0: "Без батареї (u₀)",
   u1: "Заряд від сонця (u₁)",
-  u2: "Заряд з мережі (u₂)",
-  u3: "Комбінований (u₃)",
-  u4: "Мінімізація піків (u₄)",
+  u2: "Арбітраж (u₂)",
+  u3: "Самоспоживання (u₃)",
 }
 
 export interface ScenarioCriteria {
@@ -345,7 +380,7 @@ export function runFuzzyAnalysis(
   allDayPrices: number[][],
   config: BatteryConfig,
 ): FuzzyAnalysisResult {
-  const modes: ScenarioMode[] = ["u0", "u1", "u2", "u3", "u4"]
+  const modes: ScenarioMode[] = ["u0", "u1", "u2", "u3"]
   const nm = modes.length
 
   const raw = modes.map(mode => {
