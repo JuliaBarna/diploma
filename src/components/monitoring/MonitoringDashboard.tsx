@@ -392,8 +392,8 @@ export function MonitoringDashboard() {
           }
         />
         <KpiCard
-          label="Загальне вироблення"
-          value={stats.totalYield.toFixed(2)}
+          label="Споживання за день"
+          value={stats.consumptionToday.toFixed(2)}
           unit="МВт·год"
           icon={
             <svg
@@ -401,14 +401,12 @@ export function MonitoringDashboard() {
               height="18"
               viewBox="0 0 24 24"
               fill="none"
-              stroke={C.green}
+              stroke={C.blue}
               strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <polyline
-                points="22 12 18 12 15 21 9 3 6 12 2 12"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
             </svg>
           }
         />

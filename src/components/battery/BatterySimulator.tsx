@@ -6,6 +6,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip,
   Legend, ResponsiveContainer, Cell,
 } from "recharts"
+import * as XLSX from "xlsx"
 import { priceColor, priceTier, type ScenarioMode, MODE_LABELS } from "@/lib/battery-optimizer"
 
 // ── Типи (відображають відповідь API) ────────────────────────────────────────
@@ -15,7 +16,7 @@ interface HourlyResult {
   priceUahMwh: number; priceUahKwh: number
   buyPriceUahKwh: number; sellPriceUahKwh: number; tier: string
   baseImport: number; baseExport: number; baseCost: number
-  batAction: number; socEnd: number
+  batAction: number; socStart: number; socEnd: number
   optImport: number; optSell: number; optCost: number
 }
 interface DayResult {
@@ -30,7 +31,7 @@ interface Summary {
   date: string
   avgDailySavingsUah: number; monthlySavingsUah: number
   yearlySavingsUah: number; paybackYears: number
-  hasRealData: boolean
+  hasRealData: boolean; dataMonths: number
 }
 interface SimulateResponse {
   summary: Summary
@@ -104,7 +105,7 @@ export function BatterySimulator() {
   const [gridCharge, setGridCharge] = useState(true)
   const [chargeMaxKwh, setChargeMaxKwh] = useState(4.0)
   const [dischargeMinKwh, setDischargeMinKwh] = useState(7.0)
-  const [selectedDate, setSelectedDate] = useState(() => "2026-04-01")
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [prices, setPrices] = useState<number[]>(Array(24).fill(0))
   const [pricesText, setPricesText] = useState("")
   const [showPriceEditor, setShowPriceEditor] = useState(false)
@@ -115,6 +116,7 @@ export function BatterySimulator() {
   const [noData, setNoData] = useState(false)
 
   const [mode, setMode] = useState<ScenarioMode>("u3")
+  const [batteryPrice, setBatteryPrice] = useState(6200)
 
 const runSimulation = useCallback((overridePrices?: number[], overrideMode?: ScenarioMode) => {
     const p = overridePrices ?? prices
@@ -126,15 +128,16 @@ const runSimulation = useCallback((overridePrices?: number[], overrideMode?: Sce
       gridCharge: String(gridCharge),
       chargeMaxPrice: String(chargeMaxKwh),
       dischargeMinPrice: String(dischargeMinKwh),
+      batteryPrice: String(batteryPrice),
       mode: m,
-      prices: p.join(","),
     })
+    if (p.some(v => v > 0)) params.set("prices", p.join(","))
     setNoData(false)
     fetch(`/api/battery/simulate?${params}`)
       .then(r => r.ok ? r.json() : r.json().then((e: { error?: string }) => Promise.reject(e)))
       .then((d: SimulateResponse) => { setData(d); setLoading(false) })
       .catch(() => { setNoData(true); setData(null); setLoading(false) })
-  }, [capacity, gridCharge, chargeMaxKwh, dischargeMinKwh, selectedDate, prices, mode])
+  }, [capacity, gridCharge, chargeMaxKwh, dischargeMinKwh, selectedDate, prices, mode, batteryPrice])
 
   // Load RDN prices from DB for the selected date, then run simulation + fuzzy
   useEffect(() => {
@@ -213,10 +216,25 @@ const runSimulation = useCallback((overridePrices?: number[], overrideMode?: Sce
             </div>
             <div style={{ fontSize: "12px", color: C.dim, marginBottom: "4px" }}>
               = <strong style={{ color: "#22c55e" }}>{fmtCap(capacity)}</strong>
-              {" · "}вартість установки ≈ <strong style={{ color: C.text }}>₴{(capacity * 30000).toLocaleString("uk-UA")}</strong>
+              {" · "}вартість установки ≈ <strong style={{ color: C.text }}>₴{(capacity * 6200).toLocaleString("uk-UA")}</strong>
             </div>
             <div style={{ fontSize: "12px", color: C.dim, marginTop: "8px", lineHeight: 1.5 }}>
               Фізичний розмір накопичувача. Більша ємність — більше енергії можна зберегти, але вища вартість.
+            </div>
+            <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: `1px solid ${C.border}` }}>
+              <div style={{ fontSize: "12px", color: C.dim, marginBottom: "6px" }}>Ціна встановлення</div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <input
+                  type="number" value={batteryPrice}
+                  onChange={e => { const v = Number(e.target.value); if (!isNaN(v) && v > 0) setBatteryPrice(v) }}
+                  onBlur={() => setBatteryPrice(v => Math.max(1000, Math.min(200000, v)))}
+                  style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", fontSize: "16px", fontWeight: 700, border: `1px solid ${C.border}`, background: "var(--c-bg)", color: C.text, width: 0 }}
+                />
+                <span style={{ fontSize: "13px", color: C.muted, flexShrink: 0 }}>₴/кВт·год</span>
+              </div>
+              <div style={{ fontSize: "12px", color: C.dim, marginTop: "4px" }}>
+                Загальна вартість ≈ <strong style={{ color: C.text }}>₴{(capacity * batteryPrice).toLocaleString("uk-UA")}</strong>
+              </div>
             </div>
           </div>
 
@@ -403,10 +421,10 @@ const runSimulation = useCallback((overridePrices?: number[], overrideMode?: Sce
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
           <KpiCard label="Добова економія" value={`₴${fmt(s.avgDailySavingsUah, 0)}`} sub={`реальні дані · ${s.date}`} color="#22c55e" />
           <KpiCard label="На місяць" value={`₴${fmt(s.monthlySavingsUah, 0)}`} sub="30 днів" color="#22c55e" />
-          <KpiCard label="На рік" value={`₴${fmt(s.yearlySavingsUah, 0)}`} sub="365 днів" />
+          <KpiCard label="На рік" value={`₴${fmt(s.yearlySavingsUah, 0)}`} sub={`середнє за ${s.dataMonths} міс. × 365 днів`} />
           {s.yearlySavingsUah > 0 && (
             <KpiCard label="Окупність" value={`${fmt(s.paybackYears, 1)} р.`}
-              sub={`${fmtCap(capacity)} × ₴30 000`}
+              sub={`${fmtCap(capacity)} × ₴${batteryPrice.toLocaleString("uk-UA")}/кВт·год · ${s.dataMonths} міс. даних`}
               color={s.paybackYears < 5 ? "#22c55e" : s.paybackYears < 10 ? "#f97316" : "#ef4444"} />
           )}
         </div>
@@ -416,7 +434,7 @@ const runSimulation = useCallback((overridePrices?: number[], overrideMode?: Sce
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "14px", padding: "20px 24px" }}>
         <div style={{ fontSize: "12px", color: C.dim, marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Стратегія керування батареєю</div>
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          {(["u0", "u1", "u2", "u3", "u4"] as ScenarioMode[]).map(m => (
+          {(["u0", "u1", "u2", "u3"] as ScenarioMode[]).map(m => (
             <button key={m} onClick={() => { setMode(m); runSimulation(undefined, m) }}
               style={{
                 padding: "8px 16px", borderRadius: "8px", fontSize: "13px", fontWeight: m === mode ? 700 : 400,
@@ -491,6 +509,166 @@ const runSimulation = useCallback((overridePrices?: number[], overrideMode?: Sce
               ? "⬛ заливка — імпорт з мережі; 🟡 заливка — надлишок сонця, проданий в мережу."
               : "⬛ пунктир — імпорт без батареї; 🔵 заливка — імпорт з батареєю; 🟣 пунктир — рівень заряду батареї (права вісь %)."}
             {ld.gridChargeKwh > 0 && ` Заряджено з дешевої мережі: ${fmt(ld.gridChargeKwh, 1)} кВт·год.`}
+          </div>
+
+          {/* ── Погодинна таблиця ─────────────────────────────────────── */}
+          <div style={{ marginTop: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: C.text }}>Погодинні дані</div>
+            <button
+              onClick={() => {
+                const headers = [
+                  "Година", "Ціна РДН (₴/кВт·год)", "Ціна купівлі (₴/кВт·год)",
+                  "PV (кВт·год)", "Споживання (кВт·год)",
+                  ...(mode !== "u0" ? ["Дія батареї (кВт·год)", "SoC (%)"] : []),
+                  "Імпорт без батареї (кВт·год)",
+                  ...(mode !== "u0" ? ["Імпорт з батареєю (кВт·год)", "Продаж з батареєю (кВт·год)"] : ["Продаж (кВт·год)"]),
+                  "Витрати без батареї (₴)",
+                  ...(mode !== "u0" ? ["Витрати з батареєю (₴)", "Економія (₴)"] : []),
+                ]
+                const rows = ld.hourly.map(h => [
+                  `${String(h.hour).padStart(2, "0")}:00`,
+                  h.priceUahKwh,
+                  h.buyPriceUahKwh,
+                  h.pvKwh,
+                  h.loadKwh,
+                  ...(mode !== "u0" ? [h.batAction, Math.round(h.socEnd * 1000) / 10] : []),
+                  h.baseImport,
+                  ...(mode !== "u0" ? [h.optImport, h.optSell] : [h.baseExport]),
+                  h.baseCost,
+                  ...(mode !== "u0" ? [h.optCost, Math.round((h.baseCost - h.optCost) * 100) / 100] : []),
+                ])
+                const totalRow = [
+                  "Разом", "", "",
+                  Math.round(ld.hourly.reduce((s, h) => s + h.pvKwh, 0) * 100) / 100,
+                  Math.round(ld.hourly.reduce((s, h) => s + h.loadKwh, 0) * 100) / 100,
+                  ...(mode !== "u0" ? ["", ""] : []),
+                  Math.round(ld.hourly.reduce((s, h) => s + h.baseImport, 0) * 100) / 100,
+                  ...(mode !== "u0"
+                    ? [Math.round(ld.hourly.reduce((s, h) => s + h.optImport, 0) * 100) / 100,
+                       Math.round(ld.hourly.reduce((s, h) => s + h.optSell, 0) * 100) / 100]
+                    : [Math.round(ld.hourly.reduce((s, h) => s + h.baseExport, 0) * 100) / 100]),
+                  Math.round(ld.baselineCost * 100) / 100,
+                  ...(mode !== "u0" ? [Math.round(ld.optimizedCost * 100) / 100, Math.round(ld.savings * 100) / 100] : []),
+                ]
+                const ws = XLSX.utils.aoa_to_sheet([headers, ...rows, [], totalRow])
+                ws["!cols"] = headers.map(() => ({ wch: 22 }))
+                const wb = XLSX.utils.book_new()
+                XLSX.utils.book_append_sheet(wb, ws, `${ld.date} ${mode}`)
+                XLSX.writeFile(wb, `battery_${ld.date}_${mode}.xlsx`)
+              }}
+              style={{ padding: "6px 14px", borderRadius: "8px", fontSize: "12px", border: `1px solid ${C.border}`, background: "transparent", color: C.muted, cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
+            >
+              ↓ Експорт Excel
+            </button>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+              <thead>
+                <tr style={{ borderBottom: `2px solid ${C.border}` }}>
+                  {["Година", "Ціна, ₴/кВт·год", "PV, кВт·год", "Спожив., кВт·год",
+                    ...(mode !== "u0" ? ["SoC поч., %", "Дія батареї", "SoC кін., %"] : []),
+                    "Імпорт (без бат.)", ...(mode !== "u0" ? ["Імпорт (з бат.)", "Продаж (з бат.)"] : ["Продаж"]),
+                    "Витрати (без бат.)", ...(mode !== "u0" ? ["Витрати (з бат.)", "Економія"] : []),
+                  ].map(col => (
+                    <th key={col} style={{ padding: "8px 10px", textAlign: "right", color: C.dim, fontWeight: 600, whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: "0.4px", fontSize: "10px" }}>
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ld.hourly.map((h, idx) => {
+                  const savings = h.baseCost - h.optCost
+                  const isCharge  = h.batAction > 0
+                  const isDisch   = h.batAction < 0
+                  const rowBg = idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)"
+                  const actionColor = isCharge ? "#3b82f6" : isDisch ? "#22c55e" : C.dim
+                  return (
+                    <tr key={h.hour} style={{ background: rowBg, borderBottom: `1px solid rgba(255,255,255,0.04)` }}>
+                      <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 600, color: C.text, whiteSpace: "nowrap" }}>
+                        {String(h.hour).padStart(2, "0")}:00
+                      </td>
+                      <td style={{ padding: "7px 10px", textAlign: "right", color: h.tier === "cheap" ? "#3b82f6" : h.tier === "expensive" ? "#ef4444" : "#f97316" }}>
+                        {fmt(h.buyPriceUahKwh, 2)}
+                      </td>
+                      <td style={{ padding: "7px 10px", textAlign: "right", color: "#22c55e" }}>
+                        {fmt(h.pvKwh, 2)}
+                      </td>
+                      <td style={{ padding: "7px 10px", textAlign: "right", color: "#ef4444" }}>
+                        {fmt(h.loadKwh, 2)}
+                      </td>
+                      {mode !== "u0" && (
+                        <>
+                          <td style={{ padding: "7px 10px", textAlign: "right", color: "#a855f7" }}>
+                            {fmt(h.socStart * 100, 1)}%
+                          </td>
+                          <td style={{ padding: "7px 10px", textAlign: "right", color: actionColor, fontWeight: 600, whiteSpace: "nowrap" }}>
+                            {h.batAction === 0 ? <span style={{ color: C.dim }}>—</span>
+                              : `${isCharge ? "▲" : "▼"} ${fmt(Math.abs(h.batAction), 2)}`}
+                          </td>
+                          <td style={{ padding: "7px 10px", textAlign: "right", color: "#a855f7" }}>
+                            {fmt(h.socEnd * 100, 1)}%
+                          </td>
+                        </>
+                      )}
+                      <td style={{ padding: "7px 10px", textAlign: "right", color: C.muted }}>
+                        {fmt(h.baseImport, 2)}
+                      </td>
+                      {mode !== "u0" && (
+                        <td style={{ padding: "7px 10px", textAlign: "right", color: "#3b82f6" }}>
+                          {fmt(h.optImport, 2)}
+                        </td>
+                      )}
+                      <td style={{ padding: "7px 10px", textAlign: "right", color: "#f59e0b" }}>
+                        {fmt(mode !== "u0" ? h.optSell : h.baseExport, 2)}
+                      </td>
+                      <td style={{ padding: "7px 10px", textAlign: "right", color: C.muted }}>
+                        ₴{fmt(h.baseCost, 2)}
+                      </td>
+                      {mode !== "u0" && (
+                        <>
+                          <td style={{ padding: "7px 10px", textAlign: "right", color: C.text }}>
+                            ₴{fmt(h.optCost, 2)}
+                          </td>
+                          <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: 600, color: savings > 0 ? "#22c55e" : savings < 0 ? "#ef4444" : C.dim }}>
+                            {savings === 0 ? <span style={{ color: C.dim }}>—</span> : `₴${fmt(savings, 2)}`}
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  )
+                })}
+              </tbody>
+              <tfoot>
+                <tr style={{ borderTop: `2px solid ${C.border}` }}>
+                  <td colSpan={mode !== "u0" ? 7 : 4} style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: C.dim, fontSize: "11px", textTransform: "uppercase" }}>Разом</td>
+                  <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: C.muted }}>
+                    {fmt(ld.hourly.reduce((s, h) => s + h.baseImport, 0), 2)}
+                  </td>
+                  {mode !== "u0" && (
+                    <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: "#3b82f6" }}>
+                      {fmt(ld.hourly.reduce((s, h) => s + h.optImport, 0), 2)}
+                    </td>
+                  )}
+                  <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: "#f59e0b" }}>
+                    {fmt(ld.hourly.reduce((s, h) => s + (mode !== "u0" ? h.optSell : h.baseExport), 0), 2)}
+                  </td>
+                  <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: C.muted }}>
+                    ₴{fmt(ld.baselineCost, 2)}
+                  </td>
+                  {mode !== "u0" && (
+                    <>
+                      <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: C.text }}>
+                        ₴{fmt(ld.optimizedCost, 2)}
+                      </td>
+                      <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 700, color: ld.savings > 0 ? "#22c55e" : "#ef4444" }}>
+                        ₴{fmt(ld.savings, 2)}
+                      </td>
+                    </>
+                  )}
+                </tr>
+              </tfoot>
+            </table>
           </div>
         </div>
       )}
